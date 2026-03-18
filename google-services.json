@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17354788772",
+    "project_id": "bump-97da0",
+    "storage_bucket": "bump-97da0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17354788772:android:e68b7d83a056083447fb31",
+        "android_client_info": {
+          "package_name": "com.hibio.Bump"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAehteFarFrm992BWC19YsvMGOgKpf2ZhM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
