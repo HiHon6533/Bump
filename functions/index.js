@@ -111,7 +111,7 @@ app.post('/sendOtp', async (req, res) => {
   try {
     await transporter.sendMail({
       from: `"Bump App" <${GMAIL_USER}>`,
-      to: email,
+      to: email, // <--- Đổi thành email người dùng đăng ký tại đây
       subject: type === 'recovery' ? 'Đặt lại mật khẩu Bump' : 'Xác nhận đăng ký Bump',
       html: buildEmailHTML(otp, type),
     });

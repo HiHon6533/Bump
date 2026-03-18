@@ -6,7 +6,7 @@
 // =========================================================
 
 // Base URL của Render.com backend
-const BACKEND_BASE_URL = 'https://bump-7qxj.onrender.com';
+const BACKEND_BASE_URL = 'https://bump-kohl.vercel.app';
 
 // Timeout 60 giây — tránh xoay mãi khi server Render.com free đang ngủ (Cold Start mất khoảng 50s)
 const FETCH_TIMEOUT_MS = 60000;

@@ -12,7 +12,7 @@
 import { supabase } from './supabaseConfig';
 import { saveUserSession, clearUserSession } from '../utils/storage';
 
-const FIREBASE_FUNCTIONS_BASE = 'https://bump-7qxj.onrender.com';
+const FIREBASE_FUNCTIONS_BASE = 'https://bump-kohl.vercel.app';
 
 // =========================================================
 // Đăng ký tài khoản mới (Gọi sau khi verifyOTP thành công)
