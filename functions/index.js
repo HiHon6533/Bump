@@ -178,21 +178,22 @@ app.post('/resetPassword', async (req, res) => {
     return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự.' });
   }
 
-  // Tìm userId từ bảng users
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
+  // Lấy User ID bằng API nội bộ của Supabase Auth (thông qua generateLink)
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'recovery',
+    email: email,
+  });
 
-  if (profileError || !profile) {
+  if (linkError || !linkData?.user) {
     console.error('[resetPassword] Không tìm thấy user:', email);
     return res.status(404).json({ error: 'Không tìm thấy tài khoản với email này.' });
   }
 
+  const userId = linkData.user.id;
+
   // Đổi mật khẩu bằng Supabase Admin API
   const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-    profile.id,
+    userId,
     { password: newPassword }
   );
 
