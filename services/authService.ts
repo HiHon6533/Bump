@@ -12,7 +12,7 @@
 import { supabase } from './supabaseConfig';
 import { saveUserSession, clearUserSession } from '../utils/storage';
 
-const FIREBASE_FUNCTIONS_BASE = 'https://us-central1-bump-97da0.cloudfunctions.net';
+const FIREBASE_FUNCTIONS_BASE = 'https://bump-7qxj.onrender.com';
 
 // =========================================================
 // Đăng ký tài khoản mới (Gọi sau khi verifyOTP thành công)

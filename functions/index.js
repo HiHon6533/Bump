@@ -208,7 +208,13 @@ app.post('/resetPassword', async (req, res) => {
 // =========================================================
 // Start Server
 // =========================================================
-app.listen(PORT, () => {
-  console.log(`\n🚀 Bump Backend đang chạy tại port ${PORT}`);
-  console.log(`   Health check: http://localhost:${PORT}/`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Bump Backend đang chạy tại port ${PORT}`);
+    console.log(`   Health check: http://localhost:${PORT}/`);
+  });
+}
+
+// Export cho Vercel (hoặc các nền tảng serverless khác)
+module.exports = app;
+
