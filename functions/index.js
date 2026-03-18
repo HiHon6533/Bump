@@ -95,6 +95,24 @@ app.post('/sendOtp', async (req, res) => {
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
+  // Kiểm tra xem user đã tồn tại trong Supabase Auth chưa
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'recovery', // Dùng recovery link để check xem email có thật không
+    email: email,
+  });
+
+  const userExists = !linkError && linkData?.user;
+
+  // Xử lý Quên Mật Khẩu
+  if (type === 'recovery' && !userExists) {
+    return res.status(404).json({ error: 'Email này chưa được đăng ký trong hệ thống.' });
+  }
+
+  // Xử lý Đăng Ký Mới
+  if (type === 'signup' && userExists) {
+    return res.status(400).json({ error: 'Email này đã được sử dụng. Vui lòng đăng nhập.' });
+  }
+
   // Lưu OTP vào Supabase (ghi đè nếu đã có cho email + type này)
   const { error: dbError } = await supabaseAdmin
     .from('otp_tokens')
