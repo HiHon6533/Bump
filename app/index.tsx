@@ -1,54 +1,89 @@
 // =========================================================
 // app/index.tsx
 // Entry point của ứng dụng.
-// Kiểm tra trạng thái intro và đăng nhập,
-// sau đó điều hướng đến màn hình phù hợp.
+// Render Splash Screen TRỰC TIẾP (không dùng router.replace)
+// để tránh lỗi "navigate before mounting Root Layout".
+// Sau khi splash xong → checkAppState() → navigate phù hợp.
 // =========================================================
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  StatusBar,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { isIntroShown } from '../utils/storage';
-import { getUserSession, clearUserSession } from '../utils/storage';
+import { getUserSession } from '../utils/storage';
 import { logoutUser } from '../services/authService';
+import { Colors } from '../styles/colors';
+
+const { width } = Dimensions.get('window');
+
+// Các trạng thái có thể của màn hình này
+type AppState = 'splash' | 'checking' | 'home';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
+  const [appState, setAppState] = useState<AppState>('splash');
   const [userName, setUserName] = useState('');
 
+  // ---- Splash animation values ----
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
   useEffect(() => {
-    checkAppState();
+    // Chạy splash animation rồi check auth
+    runSplashThenCheck();
   }, []);
 
   // =========================================================
-  // Kiểm tra trạng thái app khi khởi động
+  // Splash animation + sau đó checkAppState
+  // =========================================================
+  const runSplashThenCheck = () => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 60, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.delay(1800),
+    ]).start(() => {
+      // Sau khi splash xong → chuyển sang checking state
+      setAppState('checking');
+      checkAppState();
+    });
+  };
+
+  // =========================================================
+  // Kiểm tra trạng thái app và điều hướng
   // =========================================================
   const checkAppState = async () => {
     try {
-      // Kiểm tra đã xem intro chưa
       const introShown = await isIntroShown();
       if (!introShown) {
-        // Chưa xem intro → chuyển đến màn hình giới thiệu
         router.replace('/intro' as any);
         return;
       }
 
-      // Kiểm tra đã đăng nhập chưa
       const session = await getUserSession();
       if (!session) {
-        // Chưa đăng nhập → chuyển đến màn hình login
         router.replace('/login' as any);
         return;
       }
 
-      // Đã đăng nhập → hiển thị Home
-      setUserName(session);
+      // Đã đăng nhập → hiển thị Tabs chính (chỉ định rõ tab đầu tiên là map)
+      router.replace('/(tabs)/map' as any);
     } catch (error) {
-      // Nếu có lỗi, chuyển về login
       router.replace('/login' as any);
-    } finally {
-      setChecking(false);
     }
   };
 
@@ -60,45 +95,178 @@ export default function HomeScreen() {
     router.replace('/login' as any);
   };
 
-  // Hiển thị loading trong khi kiểm tra
-  if (checking) {
+  // =========================================================
+  // Render: Splash Screen
+  // =========================================================
+  if (appState === 'splash') {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="text-gray-500 mt-4">Đang khởi động...</Text>
+      <View style={splashStyles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.splashBg} />
+
+        {/* Decorative circles */}
+        <View style={splashStyles.circleLarge} />
+        <View style={splashStyles.circleMedium} />
+        <View style={splashStyles.circleSmall} />
+
+        {/* Logo container */}
+        <Animated.View
+          style={[
+            splashStyles.logoContainer,
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+          ]}
+        >
+          <View style={splashStyles.logoCircle}>
+            <Text style={splashStyles.logoEmoji}>📍</Text>
+          </View>
+
+          <Animated.View
+            style={{ transform: [{ translateY: slideAnim }], opacity: fadeAnim }}
+          >
+            <Text style={splashStyles.appName}>Bump</Text>
+            <Text style={splashStyles.tagline}>Chia sẻ vị trí với bạn bè</Text>
+          </Animated.View>
+        </Animated.View>
+
+        {/* Bottom dots */}
+        <Animated.View style={[splashStyles.bottomArea, { opacity: fadeAnim }]}>
+          <View style={splashStyles.dotsRow}>
+            <View style={[splashStyles.dot, splashStyles.dotActive]} />
+            <View style={splashStyles.dot} />
+            <View style={splashStyles.dot} />
+          </View>
+          <Text style={splashStyles.version}>Version 1.0.0</Text>
+        </Animated.View>
       </View>
     );
   }
 
   // =========================================================
-  // Màn hình Home (placeholder) - thay bằng UI thật sau
+  // Render: Checking / Loading
   // =========================================================
-  return (
-    <View className="flex-1 items-center justify-center bg-blue-50 px-8">
-      {/* Logo / Icon */}
-      <Text style={{ fontSize: 80 }}>📍</Text>
-
-      {/* Tiêu đề */}
-      <Text className="text-4xl font-bold text-blue-600 mt-4">Bump</Text>
-      <Text className="text-gray-500 text-base mt-2 text-center">
-        Chia sẻ vị trí với những người xung quanh
-      </Text>
-
-      {/* Thông tin đăng nhập */}
-      <View className="bg-white rounded-2xl p-6 mt-8 w-full shadow-sm">
-        <Text className="text-gray-600 text-center">✅ Đã đăng nhập thành công!</Text>
-        <Text className="text-gray-400 text-sm text-center mt-1" numberOfLines={1}>
-          UID: {userName}
-        </Text>
+  if (appState === 'checking') {
+    return (
+      <View style={homeStyles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={homeStyles.loadingText}>Đang khởi động...</Text>
       </View>
+    );
+  }
 
-      {/* Nút Đăng xuất */}
-      <TouchableOpacity
-        onPress={handleLogout}
-        className="mt-8 bg-red-500 rounded-2xl py-3 px-10"
-      >
-        <Text className="text-white font-bold text-base">🚪  Đăng xuất</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  // Component UI này sẽ hiếm khi được nhìn thấy vì router.replace
+  // đã chuyển ngay sang /(tabs). Tạm trả về view rỗng.
+  return <View style={homeStyles.homeContainer} />;
 }
+
+// =========================================================
+// Slash/Loading Styles
+// =========================================================
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.splashBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleLarge: {
+    position: 'absolute',
+    width: width * 1.2,
+    height: width * 1.2,
+    borderRadius: width * 0.6,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -width * 0.4,
+    right: -width * 0.3,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: width * 0.4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: -width * 0.2,
+    left: -width * 0.2,
+  },
+  circleSmall: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    bottom: 140,
+    right: 30,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    gap: 20,
+  },
+  logoCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  logoEmoji: { fontSize: 50 },
+  appName: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: Colors.white,
+    textAlign: 'center',
+    letterSpacing: -1,
+    marginTop: 4,
+  },
+  tagline: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center',
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  bottomArea: {
+    position: 'absolute',
+    bottom: 50,
+    alignItems: 'center',
+    gap: 12,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  version: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+  },
+});
+
+const homeStyles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.white,
+  },
+  loadingText: {
+    marginTop: 12, fontSize: 14, color: Colors.textMuted,
+  },
+  homeContainer: {
+    flex: 1, backgroundColor: Colors.white,
+  },
+});

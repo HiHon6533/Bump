@@ -10,7 +10,7 @@
 // =========================================================
 
 import { supabase } from './supabaseConfig';
-import { saveUserSession, clearUserSession } from '../utils/storage';
+import { saveUserSession, clearUserSession, saveSessionToken } from '../utils/storage';
 
 const FIREBASE_FUNCTIONS_BASE = 'https://bump-kohl.vercel.app';
 
@@ -40,12 +40,12 @@ export const registerUser = async (
 // =========================================================
 export const saveUserProfile = async (
   userId: string,
-  name: string,
+  username: string,
   email: string
 ): Promise<void> => {
   const { error: dbError } = await supabase
     .from('users')
-    .upsert([{ id: userId, name, email, avatar: '', created_at: new Date() }]);
+    .upsert([{ id: userId, username, name: username, email, avatar: '', created_at: new Date() }]);
 
   if (dbError) {
     console.error('Lỗi khi lưu thông tin User vào DB:', dbError.message);
@@ -74,7 +74,34 @@ export const loginUser = async (
     throw new Error('Đăng nhập thất bại. Không tìm thấy thông tin người dùng.');
   }
 
+  // ---- Đảm bảo user có dữ liệu trong bảng public.users ----
+  // (Đề phòng trường hợp admin xoá tay data trong bảng nhưng quên xoá trong mục Authentication)
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    await supabase.auth.signOut();
+    throw new Error('Tài khoản này đã bị xoá dữ liệu trên hệ thống. Vui lòng đăng ký lại.');
+  }
+
+  // ---- Đưa session_token vào DB và Local để chặn đăng nhập nhiều thiết bị ----
+  const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  
+  const { error: dbError } = await supabase
+    .from('users')
+    .update({ session_token: sessionToken })
+    .eq('id', data.user.id);
+
+  if (dbError) {
+    console.error('Không thể cập nhật session_token:', dbError.message);
+  }
+
   await saveUserSession(data.user.id);
+  await saveSessionToken(sessionToken);
+
   return { id: data.user.id, email: data.user.email };
 };
 

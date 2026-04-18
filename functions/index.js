@@ -23,7 +23,7 @@ app.use(express.json());
 // =========================================================
 const PORT = process.env.PORT || 3000;
 const GMAIL_USER = 'hoangnguyen6533@gmail.com';
-const GMAIL_PASS = 'xhph yzjy dyib nkop'; // Gmail App Password
+const GMAIL_PASS = 'hsop nfni lprc zakw'; // Gmail App Password mới đã cập nhật
 
 const SUPABASE_URL = 'https://xhumayakhvylygqtyihh.supabase.co';
 const SUPABASE_SERVICE_KEY =

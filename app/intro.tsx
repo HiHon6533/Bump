@@ -1,7 +1,7 @@
 // =========================================================
 // app/intro.tsx
 // Màn hình giới thiệu ứng dụng - hiển thị lần đầu tiên mở app.
-// Gồm 3 trang slide với nội dung giới thiệu chức năng.
+// 3 trang slide với design hiện đại, full animation, StyleSheet.
 // =========================================================
 
 import React, { useRef, useState } from 'react';
@@ -13,77 +13,94 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Image,
+  StyleSheet,
+  StatusBar,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { setIntroShown } from '../utils/storage';
-// NativeWind v4 không cần import styled - dùng className trực tiếp
+import { Colors } from '../styles/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get('window');
 
-// ---- Dữ liệu nội dung từng trang slide ----
+// =========================================================
+// Dữ liệu 3 trang slide
+// =========================================================
 const slides = [
   {
     id: '1',
     title: 'Chia Sẻ Vị Trí',
+    subtitle: 'Thời gian thực',
     description:
-      'Tự động chia sẻ vị trí của bạn với bạn bè và những người xung quanh theo thời gian thực.',
+      'Tự động chia sẻ vị trí của bạn với bạn bè theo thời gian thực. Luôn biết bạn bè đang ở đâu!',
     emoji: '📍',
-    bg: '#E8F4FD',
-    accent: '#2196F3',
+    bg: '#EEF2FF',
+    cardBg: '#6C63FF',
+    accent: '#6C63FF',
+    decorColor: 'rgba(108,99,255,0.12)',
   },
   {
     id: '2',
-    title: 'Kết Nối Người Lân Cận',
+    title: 'Kết Nối Bạn Bè',
+    subtitle: 'Gần hơn mỗi ngày',
     description:
-      'Khám phá và kết nối với những người đang ở gần bạn. Xây dựng mạng lưới xã hội dựa trên vị trí địa lý.',
+      'Khám phá và kết nối với những người đang ở gần bạn. Xây dựng mạng lưới xã hội dựa trên vị trí.',
     emoji: '🤝',
     bg: '#F0FDF4',
-    accent: '#22C55E',
+    cardBg: '#10B981',
+    accent: '#10B981',
+    decorColor: 'rgba(16,185,129,0.12)',
   },
   {
     id: '3',
     title: 'Bump & Chia Sẻ',
+    subtitle: 'Đơn giản & Nhanh chóng',
     description:
-      'Chia sẻ thông tin nhanh chóng chỉ bằng cách "bump" điện thoại với người khác. Đơn giản như chạm tay!',
+      'Chỉ cần chạm điện thoại với người khác để "bump" — trao đổi thông tin tức thì, không cần gõ gì cả!',
     emoji: '⚡',
-    bg: '#FEF9EB',
+    bg: '#FFFBEB',
+    cardBg: '#F59E0B',
     accent: '#F59E0B',
+    decorColor: 'rgba(245,158,11,0.12)',
   },
 ];
 
-type Slide = typeof slides[0];
+type Slide = (typeof slides)[0];
 
 // =========================================================
-// Component hiển thị từng trang slide
+// Component từng slide
 // =========================================================
 function SlideItem({ item }: { item: Slide }) {
   return (
-    <View
-      style={{ width: SCREEN_WIDTH, backgroundColor: item.bg }}
-      className="flex-1 items-center justify-center px-8"
-    >
-      {/* Icon emoji lớn */}
-      <Text style={{ fontSize: 100 }}>{item.emoji}</Text>
+    <View style={[styles.slide, { backgroundColor: item.bg }]}>
+      {/* ---- Decorative background shapes ---- */}
+      <View style={[styles.decorCircleLg, { backgroundColor: item.decorColor }]} />
+      <View style={[styles.decorCircleSm, { backgroundColor: item.decorColor }]} />
+      <View style={[styles.decorCircleTop, { backgroundColor: item.decorColor }]} />
 
-      {/* Tiêu đề */}
-      <Text
-        style={{ color: item.accent }}
-        className="text-3xl font-bold text-center mt-8 mb-4"
-      >
-        {item.title}
-      </Text>
+      {/* ---- Illustration card ---- */}
+      <View style={[styles.illustrationCard, { backgroundColor: item.cardBg }]}>
+        {/* Inner highlight */}
+        <View style={styles.cardHighlight} />
+        <Text style={styles.emojiLarge}>{item.emoji}</Text>
+      </View>
 
-      {/* Mô tả */}
-      <Text className="text-base text-gray-600 text-center leading-6">
-        {item.description}
-      </Text>
+      {/* ---- Subtitle chip ---- */}
+      <View style={[styles.subtitleChip, { backgroundColor: item.decorColor }]}>
+        <Text style={[styles.subtitleText, { color: item.accent }]}>{item.subtitle}</Text>
+      </View>
+
+      {/* ---- Title ---- */}
+      <Text style={[styles.slideTitle, { color: item.accent }]}>{item.title}</Text>
+
+      {/* ---- Description ---- */}
+      <Text style={styles.slideDesc}>{item.description}</Text>
     </View>
   );
 }
 
 // =========================================================
-// Component chấm chỉ trang (pagination dots)
+// Pagination dots với animation width
 // =========================================================
 function PaginationDots({
   currentIndex,
@@ -93,17 +110,17 @@ function PaginationDots({
   accent: string;
 }) {
   return (
-    <View className="flex-row justify-center items-center py-4">
-      {slides.map((_, index) => (
+    <View style={styles.dotsRow}>
+      {slides.map((_, i) => (
         <View
-          key={index}
-          style={{
-            width: currentIndex === index ? 24 : 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: currentIndex === index ? accent : '#CBD5E1',
-            marginHorizontal: 4,
-          }}
+          key={i}
+          style={[
+            styles.dot,
+            {
+              width: currentIndex === i ? 28 : 8,
+              backgroundColor: currentIndex === i ? accent : Colors.gray300,
+            },
+          ]}
         />
       ))}
     </View>
@@ -118,48 +135,55 @@ export default function IntroScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Màu accent của slide hiện tại
-  const currentAccent = slides[currentIndex].accent;
+  const currentSlide = slides[currentIndex];
   const isLastSlide = currentIndex === slides.length - 1;
 
-  // ---- Xử lý khi cuộn slide ----
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+  // ---- Scroll handler ----
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / W);
     setCurrentIndex(index);
   };
 
-  // ---- Chuyển sang slide tiếp theo ----
+  // ---- Next / Start ----
   const handleNext = () => {
     if (isLastSlide) {
       handleFinish();
     } else {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
     }
   };
 
-  // ---- Bỏ qua intro ----
+  // ---- Skip ----
   const handleSkip = async () => {
     await handleFinish();
   };
 
-  // ---- Hoàn thành intro ----
+  // ---- Finish intro ----
   const handleFinish = async () => {
-    await setIntroShown(); // Đánh dấu đã xem intro
-    router.replace('/login' as any); // Chuyển đến màn hình Login
+    await setIntroShown();
+    router.replace('/login' as any);
   };
 
   return (
-    <View className="flex-1 bg-white">
-      {/* ---- Nút Skip (ẩn khi ở slide cuối) ---- */}
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={currentSlide.bg}
+        translucent={false}
+      />
+
+      {/* ---- Skip button ---- */}
       {!isLastSlide && (
-        <View className="absolute top-12 right-6 z-10">
-          <TouchableOpacity onPress={handleSkip} className="py-2 px-4">
-            <Text className="text-gray-500 text-base font-medium">Bỏ qua</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={handleSkip}
+          style={styles.skipBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipText}>Bỏ qua</Text>
+        </TouchableOpacity>
       )}
 
-      {/* ---- Danh sách slide ngang ---- */}
+      {/* ---- Slides FlatList ---- */}
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -170,25 +194,245 @@ export default function IntroScreen() {
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        className="flex-1"
+        style={styles.flatList}
+        bounces={false}
       />
 
-      {/* ---- Phần điều hướng phía dưới ---- */}
-      <View className="pb-10 px-8 bg-white">
-        {/* Dots pagination */}
-        <PaginationDots currentIndex={currentIndex} accent={currentAccent} />
+      {/* ---- Bottom navigation ---- */}
+      <View style={[styles.bottomNav, { backgroundColor: currentSlide.bg }]}>
+        {/* Dots */}
+        <PaginationDots currentIndex={currentIndex} accent={currentSlide.accent} />
 
-        {/* Nút Next / Bắt đầu */}
-        <TouchableOpacity
-          onPress={handleNext}
-          style={{ backgroundColor: currentAccent }}
-          className="rounded-2xl py-4 items-center mt-2"
-        >
-          <Text className="text-white text-lg font-bold">
-            {isLastSlide ? '🚀  Bắt Đầu' : 'Tiếp Theo →'}
-          </Text>
-        </TouchableOpacity>
+        {/* Row: Back + Next button */}
+        <View style={styles.navRow}>
+          {/* Back button (Ẩn ở slide đầu) */}
+          {currentIndex > 0 ? (
+            <TouchableOpacity
+              onPress={() =>
+                flatListRef.current?.scrollToIndex({ index: currentIndex - 1, animated: true })
+              }
+              style={[styles.backBtn, { borderColor: currentSlide.accent }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.backBtnText, { color: currentSlide.accent }]}>←</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backBtnPlaceholder} />
+          )}
+
+          {/* Next / Start button */}
+          <TouchableOpacity
+            onPress={handleNext}
+            style={[styles.nextBtn, { backgroundColor: currentSlide.accent }]}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.nextBtnText}>
+              {isLastSlide ? '🚀  Bắt Đầu' : 'Tiếp Theo  →'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Slide counter */}
+        <Text style={styles.slideCounter}>
+          {currentIndex + 1} / {slides.length}
+        </Text>
       </View>
     </View>
   );
 }
+
+// =========================================================
+// Styles
+// =========================================================
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+
+  // ---- Skip ----
+  skipBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 20,
+  },
+  skipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.gray600,
+  },
+
+  // ---- FlatList ----
+  flatList: {
+    flex: 1,
+  },
+
+  // ---- Slide ----
+  slide: {
+    width: W,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 32,
+    overflow: 'hidden',
+  },
+
+  // ---- Decorative circles ----
+  decorCircleLg: {
+    position: 'absolute',
+    width: W * 0.9,
+    height: W * 0.9,
+    borderRadius: W * 0.45,
+    top: -W * 0.25,
+    right: -W * 0.2,
+  },
+  decorCircleSm: {
+    position: 'absolute',
+    width: W * 0.5,
+    height: W * 0.5,
+    borderRadius: W * 0.25,
+    bottom: W * 0.1,
+    left: -W * 0.15,
+  },
+  decorCircleTop: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    top: H * 0.18,
+    left: 30,
+  },
+
+  // ---- Illustration card ----
+  illustrationCard: {
+    width: 180,
+    height: 180,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardHighlight: {
+    position: 'absolute',
+    top: 12,
+    left: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  emojiLarge: {
+    fontSize: 88,
+  },
+
+  // ---- Subtitle chip ----
+  subtitleChip: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  subtitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+
+  // ---- Slide text ----
+  slideTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: 16,
+  },
+  slideDesc: {
+    fontSize: 16,
+    color: Colors.gray500,
+    textAlign: 'center',
+    lineHeight: 26,
+    maxWidth: 320,
+  },
+
+  // ---- Bottom nav ----
+  bottomNav: {
+    paddingHorizontal: 24,
+    paddingBottom: 36,
+    paddingTop: 12,
+    alignItems: 'center',
+    gap: 16,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // ---- Nav row ----
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  backBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  backBtnPlaceholder: {
+    width: 52,
+  },
+  nextBtn: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  nextBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.white,
+    letterSpacing: 0.3,
+  },
+
+  // ---- Slide counter ----
+  slideCounter: {
+    fontSize: 12,
+    color: Colors.gray400,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+});

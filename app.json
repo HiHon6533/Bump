@@ -21,7 +21,12 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.hibio.Bump",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBUQRg9CATz6X1qTuyJ8oJnPOKoyrmhQ5U"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -41,7 +46,19 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cho phép $(PRODUCT_NAME) sử dụng vị trí của bạn để theo dõi và chia sẻ với bạn bè."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép $(PRODUCT_NAME) truy cập thư viện ảnh để bạn có thể cập nhật ảnh đại diện."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false,

@@ -1,68 +1,88 @@
 // =========================================================
-// app/login.tsx
-// Màn hình đăng nhập với Email và Password.
-// Sử dụng Supabase Authentication qua authService.
+// app/login.tsx — Layout 2 phần: top (header) + bottom (form)
+// KHÔNG thay đổi logic xác thực
+// Hỗ trợ Login bằng email hoặc username
 // =========================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
+  StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
+  Animated,
   Alert,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { loginUser } from '../services/authService';
+import { supabase } from '../services/supabaseConfig';
+import { Colors } from '../styles/colors';
+import { FontSize, Spacing, BorderRadius } from '../styles/globalStyles';
+import CustomInput from '../components/CustomInput';
+import CustomButton from '../components/CustomButton';
 
 export default function LoginScreen() {
   const router = useRouter();
-
-  const [email, setEmail] = useState('');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   // =========================================================
-  // Xử lý đăng nhập
+  // Xử lý đăng nhập — Hỗ trợ email HOẶC username
   // =========================================================
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu.');
+    if (!emailOrUsername.trim() || !password.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email/username và mật khẩu.');
       return;
     }
-
     setLoading(true);
     try {
-      const user = await loginUser(email.trim(), password);
-      // loginUser ném lỗi nếu thất bại, nếu thành công thì navigate
-      if (user) {
-        router.replace('/');
+      let email = emailOrUsername.trim();
+
+      // Nếu không chứa @, coi như là username → query DB lấy email
+      if (!email.includes('@')) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', email)
+          .maybeSingle();
+        if (error || !data?.email) {
+          Alert.alert('Lỗi', 'Không tìm thấy tài khoản với username này.');
+          setLoading(false);
+          return;
+        }
+        email = data.email;
       }
+
+      const user = await loginUser(email, password);
+      if (user) router.replace('/');
     } catch (error: any) {
-      // Supabase trả về message tiếng Anh, map sang thông báo thân thiện
       const msg: string = error?.message ?? '';
       let message = 'Đăng nhập thất bại. Vui lòng thử lại.';
-
-      if (
-        msg.includes('Invalid login credentials') ||
-        msg.includes('invalid_credentials')
-      ) {
-        message = 'Email hoặc mật khẩu không đúng.';
-      } else if (msg.includes('Email not confirmed')) {
+      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials'))
+        message = 'Email/username hoặc mật khẩu không đúng.';
+      else if (msg.includes('Email not confirmed'))
         message = 'Tài khoản chưa được xác minh. Vui lòng kiểm tra email.';
-      } else if (msg.includes('too many requests') || msg.includes('rate limit')) {
+      else if (msg.includes('too many requests') || msg.includes('rate limit'))
         message = 'Quá nhiều lần thử. Vui lòng thử lại sau.';
-      } else if (msg.includes('User not found')) {
+      else if (msg.includes('User not found'))
         message = 'Không tìm thấy tài khoản với email này.';
-      } else if (msg) {
-        message = msg;
-      }
-
+      else if (msg) message = msg;
       Alert.alert('Đăng nhập thất bại', message);
     } finally {
       setLoading(false);
@@ -70,100 +90,129 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="flex-1 px-6 pt-20 pb-10">
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.primaryLight} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* ---- Header ---- */}
-          <View className="mb-10">
-            <Text className="text-4xl font-bold text-gray-900">👋 Chào mừng</Text>
-            <Text className="text-4xl font-bold text-blue-500 mt-1">trở lại!</Text>
-            <Text className="text-gray-500 mt-3 text-base">
-              Đăng nhập để tiếp tục chia sẻ vị trí cùng bạn bè.
-            </Text>
+          {/* ── TOP SECTION (màu nền) ── */}
+          <View style={styles.topSection}>
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <View style={styles.iconBadge}>
+                <Text style={styles.iconEmoji}>👋</Text>
+              </View>
+              <Text style={styles.title}>Chào mừng{'\n'}trở lại!</Text>
+              <Text style={styles.subtitle}>Đăng nhập để tiếp tục chia sẻ vị trí cùng bạn bè.</Text>
+            </Animated.View>
           </View>
 
-          {/* ---- Form đăng nhập ---- */}
-          <View className="gap-4">
+          {/* ── BOTTOM SECTION (trắng) ── */}
+          <View style={styles.bottomSection}>
+            <CustomInput
+              label="Email hoặc Username"
+              placeholder="Nhập email hoặc tên đăng nhập"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={emailOrUsername}
+              onChangeText={setEmailOrUsername}
+              accentColor={Colors.primary}
+            />
+            <CustomInput
+              label="Mật khẩu"
+              placeholder="Nhập mật khẩu"
+              isPassword
+              value={password}
+              onChangeText={setPassword}
+              accentColor={Colors.primary}
+            />
 
-            {/* Input Email */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Email</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="Nhập địa chỉ email"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            {/* Input Password */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Mật khẩu</Text>
-              <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                <TextInput
-                  className="flex-1 px-4 py-3.5 text-gray-900 text-base"
-                  placeholder="Nhập mật khẩu"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="px-4"
-                >
-                  <Text className="text-gray-500 text-base">
-                    {showPassword ? '🙈' : '👁️'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Link Quên mật khẩu */}
             <TouchableOpacity
               onPress={() => router.push('/forgot-password' as any)}
-              className="self-end"
+              style={styles.forgotBtn}
+              activeOpacity={0.7}
             >
-              <Text className="text-blue-500 font-medium">Quên mật khẩu?</Text>
+              <Text style={styles.forgotText}>Quên mật khẩu?</Text>
             </TouchableOpacity>
 
+            <CustomButton
+              label="Đăng Nhập"
+              onPress={handleLogin}
+              loading={loading}
+              color={Colors.primary}
+              style={styles.actionBtn}
+            />
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>hoặc</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.linkRow}>
+              <Text style={styles.linkLabel}>Chưa có tài khoản? </Text>
+              <TouchableOpacity onPress={() => router.push('/register' as any)} activeOpacity={0.7}>
+                <Text style={[styles.linkText, { color: Colors.primary }]}>Đăng ký ngay</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* ---- Nút Đăng nhập ---- */}
-          <TouchableOpacity
-            onPress={handleLogin}
-            disabled={loading}
-            className="bg-blue-500 rounded-2xl py-4 items-center mt-8"
-            style={{ opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white text-lg font-bold">Đăng Nhập</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* ---- Link sang Đăng ký ---- */}
-          <View className="flex-row justify-center items-center mt-6">
-            <Text className="text-gray-500">Chưa có tài khoản? </Text>
-            <TouchableOpacity onPress={() => router.push('/register' as any)}>
-              <Text className="text-blue-500 font-bold">Đăng ký ngay</Text>
-            </TouchableOpacity>
-          </View>
-
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const TOP_BG = Colors.primaryLight;
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: TOP_BG },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1 },
+
+  topSection: {
+    backgroundColor: TOP_BG,
+    paddingHorizontal: 28,
+    paddingTop: 24,
+    paddingBottom: 36,
+  },
+  iconBadge: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
+    elevation: 4,
+  },
+  iconEmoji: { fontSize: 28 },
+  title: {
+    fontSize: 32, fontWeight: '800', color: Colors.textPrimary,
+    letterSpacing: -0.5, lineHeight: 38, marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: FontSize.base, color: Colors.textSecondary, lineHeight: 22,
+  },
+
+  bottomSection: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 36,
+    marginTop: -2,
+  },
+
+  forgotBtn: { alignSelf: 'flex-end', marginTop: 4, marginBottom: 8 },
+  forgotText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
+
+  actionBtn: { marginTop: 12 },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.gray200 },
+  dividerText: { fontSize: FontSize.sm, color: Colors.textMuted },
+
+  linkRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  linkLabel: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  linkText: { fontSize: FontSize.sm, fontWeight: '700' },
+});

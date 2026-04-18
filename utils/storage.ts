@@ -16,6 +16,7 @@ const memoryStore = new Map<string, string>();
 // ---- Key constants ----
 const INTRO_SHOWN_KEY = 'bump_intro_shown';
 const USER_SESSION_KEY = 'bump_user_session';
+const SESSION_TOKEN_KEY = 'bump_session_token';
 
 // =========================================================
 // Các hàm tiện ích cơ bản
@@ -68,4 +69,17 @@ export const getUserSession = async (): Promise<string | null> => {
 /** Xoá session khi người dùng đăng xuất */
 export const clearUserSession = async (): Promise<void> => {
   await removeItem(USER_SESSION_KEY);
+  await removeItem(SESSION_TOKEN_KEY);
+};
+
+// =========================================================
+// Quản lý Đăng nhập 1 thiết bị (Single Device)
+// =========================================================
+
+export const saveSessionToken = async (token: string): Promise<void> => {
+  await setItem(SESSION_TOKEN_KEY, token);
+};
+
+export const getSessionToken = async (): Promise<string | null> => {
+  return await getItem(SESSION_TOKEN_KEY);
 };

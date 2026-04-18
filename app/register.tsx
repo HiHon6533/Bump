@@ -1,71 +1,72 @@
 // =========================================================
-// app/register.tsx
-// Màn hình đăng ký tài khoản mới.
-// Luồng: Nhập thông tin → Gửi OTP (signInWithOtp) → Verify OTP → Set Password
+// app/register.tsx — Layout 2 phần: top (header) + bottom (form)
+// KHÔNG thay đổi logic xác thực
 // =========================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  View, Text, StyleSheet, TouchableOpacity,
+  Animated, Alert, ScrollView, KeyboardAvoidingView,
+  Platform, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { sendOTP } from '../services/otpService';
+import { supabase } from '../services/supabaseConfig';
+import { Colors } from '../styles/colors';
+import { FontSize, Spacing } from '../styles/globalStyles';
+import CustomInput from '../components/CustomInput';
+import CustomButton from '../components/CustomButton';
 
 export default function RegisterScreen() {
   const router = useRouter();
-
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   // =========================================================
-  // Gửi OTP đến email và chuyển sang màn hình xác minh
+  // Gửi OTP — KHÔNG THAY ĐỔI LOGIC
   // =========================================================
   const handleRegister = async () => {
-    if (!name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập họ và tên.');
-      return;
-    }
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
-      Alert.alert('Lỗi', 'Email không hợp lệ.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.');
-      return;
-    }
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) { Alert.alert('Lỗi', 'Vui lòng nhập tên đăng nhập.'); return; }
+    if (!/^[a-zA-Z0-9_.]+$/.test(trimmedUsername)) { Alert.alert('Lỗi', 'Tên đăng nhập chỉ được chứa chữ cái, số, dấu chấm (.) và dấu gạch dưới (_), không có khoảng trắng.'); return; }
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) { Alert.alert('Lỗi', 'Email không hợp lệ.'); return; }
+    if (password.length < 6) { Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự.'); return; }
+    if (password !== confirmPassword) { Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.'); return; }
 
     setLoading(true);
     try {
-      // Gửi OTP 8 chữ số qua Supabase signInWithOtp
-      await sendOTP(email.trim(), 'signup');
+      // KIỂM TRA TÊN ĐĂNG NHẬP (USERNAME) ĐÃ TỒN TẠI HAY CHƯA
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', trimmedUsername)
+        .maybeSingle();
 
-      // Chuyển sang màn verify-otp, truyền kèm password để set sau khi verify
-      router.push({
-        pathname: '/verify-otp',
-        params: {
-          mode: 'register',
-          email: email.trim(),
-          name: name.trim(),
-          password,
-        },
-      });
+      if (error && error.code !== 'PGRST116') {
+        throw new Error('Không thể kiểm tra tên đăng nhập. Vui lòng thử lại.');
+      }
+      if (data) {
+        Alert.alert('Tên đăng nhập đã tồn tại', 'Vui lòng chọn một tên đăng nhập khác.');
+        setLoading(false);
+        return;
+      }
+
+      await sendOTP(email.trim(), 'signup');
+      router.push({ pathname: '/verify-otp', params: { mode: 'register', email: email.trim(), username: trimmedUsername, password } });
     } catch (error: any) {
       Alert.alert('Lỗi gửi mã OTP', error.message || 'Vui lòng thử lại.');
     } finally {
@@ -74,128 +75,87 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="flex-1 px-6 pt-16 pb-10">
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.successLight} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* ---- Header ---- */}
-          <View className="mb-8">
-            <Text className="text-4xl font-bold text-gray-900">Tạo</Text>
-            <Text className="text-4xl font-bold text-green-500 mt-1">tài khoản</Text>
-            <Text className="text-gray-500 mt-3 text-base">
-              Gia nhập cộng đồng Bump và bắt đầu chia sẻ vị trí!
-            </Text>
-          </View>
-
-          {/* ---- Form đăng ký ---- */}
-          <View className="gap-4">
-
-            {/* Input Họ tên */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Họ và tên</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="Nhập họ và tên của bạn"
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="words"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            {/* Input Email */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Email</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="Nhập địa chỉ email"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            {/* Input Password */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Mật khẩu</Text>
-              <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                <TextInput
-                  className="flex-1 px-4 py-3.5 text-gray-900 text-base"
-                  placeholder="Tối thiểu 6 ký tự"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="px-4"
-                >
-                  <Text className="text-gray-500 text-base">
-                    {showPassword ? '🙈' : '👁️'}
-                  </Text>
-                </TouchableOpacity>
+          {/* ── TOP SECTION ── */}
+          <View style={styles.topSection}>
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <View style={styles.iconBadge}>
+                <Text style={styles.iconEmoji}>🚀</Text>
               </View>
-            </View>
-
-            {/* Input Xác nhận Password */}
-            <View>
-              <Text className="text-gray-700 font-semibold mb-2">Xác nhận mật khẩu</Text>
-              <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                <TextInput
-                  className="flex-1 px-4 py-3.5 text-gray-900 text-base"
-                  placeholder="Nhập lại mật khẩu"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showConfirm}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirm(!showConfirm)}
-                  className="px-4"
-                >
-                  <Text className="text-gray-500 text-base">
-                    {showConfirm ? '🙈' : '👁️'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
+              <Text style={styles.title}>Tạo{'\n'}tài khoản</Text>
+              <Text style={styles.subtitle}>Gia nhập cộng đồng Bump và bắt đầu chia sẻ vị trí!</Text>
+            </Animated.View>
           </View>
 
-          {/* ---- Nút Gửi OTP ---- */}
-          <TouchableOpacity
-            onPress={handleRegister}
-            disabled={loading}
-            className="bg-green-500 rounded-2xl py-4 items-center mt-8"
-            style={{ opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white text-lg font-bold">📨  Gửi mã xác nhận</Text>
-            )}
-          </TouchableOpacity>
+          {/* ── BOTTOM SECTION ── */}
+          <View style={styles.bottomSection}>
+            <CustomInput label="Tên đăng nhập" placeholder="Nhập tên đăng nhập (vd: hihon123)" autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} accentColor={Colors.success} />
+            <CustomInput label="Email" placeholder="Nhập địa chỉ email" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} value={email} onChangeText={setEmail} accentColor={Colors.success} />
+            <CustomInput label="Mật khẩu" placeholder="Tối thiểu 6 ký tự" isPassword value={password} onChangeText={setPassword} accentColor={Colors.success} />
+            <CustomInput label="Xác nhận mật khẩu" placeholder="Nhập lại mật khẩu" isPassword value={confirmPassword} onChangeText={setConfirmPassword} accentColor={Colors.success} />
 
-          {/* ---- Link sang Đăng nhập ---- */}
-          <View className="flex-row justify-center items-center mt-6">
-            <Text className="text-gray-500">Đã có tài khoản? </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text className="text-blue-500 font-bold">Đăng nhập</Text>
-            </TouchableOpacity>
+            <CustomButton label="📨  Gửi mã xác nhận" onPress={handleRegister} loading={loading} color={Colors.success} style={styles.actionBtn} />
+
+            <View style={styles.linkRow}>
+              <Text style={styles.linkLabel}>Đã có tài khoản? </Text>
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <Text style={[styles.linkText, { color: Colors.success }]}>Đăng nhập</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const TOP_BG = Colors.successLight;
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: TOP_BG },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1 },
+
+  topSection: {
+    backgroundColor: TOP_BG,
+    paddingHorizontal: 28,
+    paddingTop: 24,
+    paddingBottom: 36,
+  },
+  iconBadge: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: Colors.success,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
+    elevation: 4,
+  },
+  iconEmoji: { fontSize: 28 },
+  title: {
+    fontSize: 32, fontWeight: '800', color: Colors.textPrimary,
+    letterSpacing: -0.5, lineHeight: 38, marginBottom: 10,
+  },
+  subtitle: { fontSize: FontSize.base, color: Colors.textSecondary, lineHeight: 22 },
+
+  bottomSection: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 36,
+    marginTop: -2,
+  },
+
+  actionBtn: { marginTop: 8 },
+
+  linkRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+  linkLabel: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  linkText: { fontSize: FontSize.sm, fontWeight: '700' },
+});

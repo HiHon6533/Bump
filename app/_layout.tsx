@@ -10,6 +10,40 @@ import './globals.css';
 export default function RootLayout() {
   return (
     <Stack>
+      {/* Màn hình chính sau khi đăng nhập */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="chat/[id]" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card', 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="history/[userId]" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card', 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="history/map-detail" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card', 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="camera" 
+        options={{ 
+          headerShown: false,
+          presentation: 'fullScreenModal', 
+          animation: 'slide_from_bottom'
+        }} 
+      />
       {/* Màn hình chính (Home) */}
       <Stack.Screen name="index" options={{ title: 'Bump', headerShown: false }} />
 
