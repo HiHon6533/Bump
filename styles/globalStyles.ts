@@ -124,7 +124,7 @@ export const globalStyles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
   },
   inputRow: {
     flexDirection: 'row',

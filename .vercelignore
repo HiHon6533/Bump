@@ -2,6 +2,7 @@
 *
 
 # But do NOT ignore the functions folder and its contents
+!functions/
 !functions/**
 
 # Ignore node_modules inside functions (Vercel will install them)

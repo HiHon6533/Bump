@@ -123,18 +123,18 @@ export default function VerifyOTPScreen() {
 
   // ====================== THEME ======================
   const accent = mode === 'register' ? Colors.success : Colors.warning;
-  const topBg = mode === 'register' ? Colors.successLight : Colors.warningLight;
+  const topBg = Colors.black;
 
   // ======================================================
   // Render: Đặt lại mật khẩu mới (sau khi OTP verify)
   // ======================================================
   if (otpVerified && mode === 'forgot') {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: Colors.warningLight }]} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.warningLight} />
+      <SafeAreaView style={[styles.safe, { backgroundColor: Colors.black }]} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
 
         {/* TOP SECTION */}
-        <View style={[styles.topSection, { backgroundColor: Colors.warningLight }]}>
+        <View style={[styles.topSection, { backgroundColor: Colors.black }]}>
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <View style={[styles.iconBadge, { shadowColor: Colors.warning }]}>
               <Text style={styles.iconEmoji}>🔐</Text>
@@ -163,7 +163,7 @@ export default function VerifyOTPScreen() {
   // ======================================================
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: topBg }]} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={topBg} />
+      <StatusBar barStyle="light-content" backgroundColor={topBg} />
 
       {/* TOP SECTION */}
       <View style={[styles.topSection, { backgroundColor: topBg }]}>
@@ -252,15 +252,15 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 16 },
   backBadge: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
+    shadowOpacity: 0.2, shadowRadius: 6, elevation: 3,
   },
   backArrow: { fontSize: 18, color: Colors.textPrimary, fontWeight: '600' },
   iconBadge: {
     width: 56, height: 56, borderRadius: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 20,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   // ── Bottom section ──
   bottomSection: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 
-  inputLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.gray700, marginBottom: 8 },
+  inputLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 },
   otpInput: {
     borderWidth: 2,
     borderRadius: 16,

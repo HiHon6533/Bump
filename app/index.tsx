@@ -16,8 +16,11 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 import { isIntroShown } from '../utils/storage';
 import { getUserSession } from '../utils/storage';
 import { logoutUser } from '../services/authService';
@@ -37,6 +40,7 @@ export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
+  const breathAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     // Chạy splash animation rồi check auth
@@ -47,19 +51,53 @@ export default function HomeScreen() {
   // Splash animation + sau đó checkAppState
   // =========================================================
   const runSplashThenCheck = () => {
+    // 1. Animation xuất hiện (Entrance)
     Animated.sequence([
+      Animated.delay(500), // Đợi 500ms để JS thread ổn định sau khi mount
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 60, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { 
+          toValue: 1, 
+          duration: 1200, 
+          useNativeDriver: true 
+        }),
+        Animated.timing(scaleAnim, { 
+          toValue: 1, 
+          duration: 1200,
+          // Easing.back tạo hiệu ứng hơi nảy nhẹ giống lò xo nhưng mượt hơn
+          // @ts-ignore
+          easing: require('react-native').Easing.out(require('react-native').Easing.back(1.5)),
+          useNativeDriver: true 
+        }),
       ]),
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(slideAnim, { 
+          toValue: 0, 
+          duration: 800, 
+          useNativeDriver: true 
+        }),
       ]),
-      Animated.delay(1800),
     ]).start(() => {
-      // Sau khi splash xong → chuyển sang checking state
-      setAppState('checking');
-      checkAppState();
+      // 2. Sau khi hiện xong mới bắt đầu cho logo "thở"
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(breathAnim, { 
+            toValue: 1.05, 
+            duration: 2000, 
+            useNativeDriver: true 
+          }),
+          Animated.timing(breathAnim, { 
+            toValue: 1, 
+            duration: 2000, 
+            useNativeDriver: true 
+          }),
+        ])
+      ).start();
+
+      // 3. Đợi một khoảng thời gian rồi mới chuyển màn hình
+      setTimeout(() => {
+        setAppState('checking');
+        checkAppState();
+      }, 3000);
     });
   };
 
@@ -101,40 +139,62 @@ export default function HomeScreen() {
   if (appState === 'splash') {
     return (
       <View style={splashStyles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.splashBg} />
+        <StatusBar barStyle="light-content" backgroundColor="#0B0F1A" />
 
-        {/* Decorative circles */}
-        <View style={splashStyles.circleLarge} />
-        <View style={splashStyles.circleMedium} />
-        <View style={splashStyles.circleSmall} />
+        {/* Deep Indigo Gradient Background */}
+        <LinearGradient
+          colors={['#0B0F1A', '#0D0E25', '#1E1B4B', '#0B0F1A']}
+          style={StyleSheet.absoluteFillObject}
+        />
 
-        {/* Logo container */}
+        {/* Decorative Blurred Orbs */}
+        <View style={[splashStyles.orb, splashStyles.orb1]} />
+        <View style={[splashStyles.orb, splashStyles.orb2]} />
+
         <Animated.View
           style={[
             splashStyles.logoContainer,
-            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+            { 
+              opacity: fadeAnim, 
+              transform: [
+                { scale: Animated.multiply(scaleAnim, breathAnim) }
+              ] 
+            },
           ]}
         >
-          <View style={splashStyles.logoCircle}>
-            <Text style={splashStyles.logoEmoji}>📍</Text>
-          </View>
-
-          <Animated.View
-            style={{ transform: [{ translateY: slideAnim }], opacity: fadeAnim }}
-          >
-            <Text style={splashStyles.appName}>Bump</Text>
-            <Text style={splashStyles.tagline}>Chia sẻ vị trí với bạn bè</Text>
-          </Animated.View>
+          <View style={splashStyles.logoShadow} />
+          <ExpoImage 
+            source={require('../assets/images/Logo_tibro_noname_removebg.png')} 
+            style={splashStyles.logoImage}
+            contentFit="contain"
+            transition={0} // Tắt hiệu ứng mặc định của expo-image để dùng animation của chúng ta
+          />
         </Animated.View>
 
-        {/* Bottom dots */}
+        {/* Brand Name Image */}
+        <Animated.View
+          style={{ 
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+            marginTop: 10,
+            alignItems: 'center'
+          }}
+        >
+          <ExpoImage 
+            source={require('../assets/images/Logo_name_tibro_removebg.png')} 
+            style={splashStyles.nameImage}
+            contentFit="contain"
+            transition={0}
+          />
+          <Text style={splashStyles.tagline}>Xây dựng cộng đồng quanh bạn</Text>
+        </Animated.View>
+
+        {/* Bottom Area */}
         <Animated.View style={[splashStyles.bottomArea, { opacity: fadeAnim }]}>
-          <View style={splashStyles.dotsRow}>
-            <View style={[splashStyles.dot, splashStyles.dotActive]} />
-            <View style={splashStyles.dot} />
-            <View style={splashStyles.dot} />
+          <View style={splashStyles.loadingBarContainer}>
+            <View style={splashStyles.loadingBarActive} />
           </View>
-          <Text style={splashStyles.version}>Version 1.0.0</Text>
+          <Text style={splashStyles.version}>v1.0.0</Text>
         </Animated.View>
       </View>
     );
@@ -164,97 +224,79 @@ export default function HomeScreen() {
 const splashStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.splashBg,
+    backgroundColor: '#0B0F1A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  circleLarge: {
+  orb: {
     position: 'absolute',
-    width: width * 1.2,
-    height: width * 1.2,
-    borderRadius: width * 0.6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    top: -width * 0.4,
-    right: -width * 0.3,
+    borderRadius: 999,
+    opacity: 0.1,
   },
-  circleMedium: {
-    position: 'absolute',
+  orb1: {
     width: width * 0.8,
     height: width * 0.8,
-    borderRadius: width * 0.4,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    bottom: -width * 0.2,
-    left: -width * 0.2,
+    backgroundColor: Colors.primary,
+    top: -50,
+    right: -100,
   },
-  circleSmall: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    bottom: 140,
-    right: 30,
+  orb2: {
+    width: width * 0.6,
+    height: width * 0.6,
+    backgroundColor: '#818CF8',
+    bottom: 50,
+    left: -80,
   },
   logoContainer: {
     alignItems: 'center',
-    gap: 20,
-  },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
   },
-  logoEmoji: { fontSize: 50 },
-  appName: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: Colors.white,
-    textAlign: 'center',
-    letterSpacing: -1,
-    marginTop: 4,
+  logoShadow: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: Colors.primary,
+    opacity: 0.15,
+  },
+  logoImage: {
+    width: 200,
+    height: 200,
+  },
+  nameImage: {
+    width: 220,
+    height: 80,
   },
   tagline: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.75)',
-    textAlign: 'center',
-    marginTop: 6,
-    letterSpacing: 0.3,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: -5,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   bottomArea: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 60,
     alignItems: 'center',
-    gap: 12,
+    width: '100%',
   },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
+  loadingBarContainer: {
+    width: 100,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 12,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+  loadingBarActive: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.primary,
   },
   version: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.5,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 1,
   },
 });
 

@@ -17,6 +17,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { loginUser } from '../services/authService';
@@ -91,15 +92,26 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.primaryLight} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
           {/* ── TOP SECTION (màu nền) ── */}
           <View style={styles.topSection}>
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-              <View style={styles.iconBadge}>
-                <Text style={styles.iconEmoji}>👋</Text>
+              <View style={styles.brandHeader}>
+                <ExpoImage
+                  source={require('../assets/images/Logo_tibro_noname_removebg.png')}
+                  style={styles.logoIcon}
+                  contentFit="contain"
+                  transition={0}
+                />
+                <ExpoImage
+                  source={require('../assets/images/Logo_name_tibro_removebg.png')}
+                  style={styles.logoName}
+                  contentFit="contain"
+                  transition={0}
+                />
               </View>
               <Text style={styles.title}>Chào mừng{'\n'}trở lại!</Text>
               <Text style={styles.subtitle}>Đăng nhập để tiếp tục chia sẻ vị trí cùng bạn bè.</Text>
@@ -162,7 +174,7 @@ export default function LoginScreen() {
   );
 }
 
-const TOP_BG = Colors.primaryLight;
+const TOP_BG = Colors.black;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: TOP_BG },
   flex: { flex: 1 },
@@ -174,16 +186,14 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 36,
   },
-  iconBadge: {
-    width: 56, height: 56, borderRadius: 16,
-    backgroundColor: Colors.white,
-    alignItems: 'center', justifyContent: 'center',
+  brandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
-    elevation: 4,
+    gap: 8,
   },
-  iconEmoji: { fontSize: 28 },
+  logoIcon: { width: 48, height: 48 },
+  logoName: { width: 100, height: 36, marginTop: 4 },
   title: {
     fontSize: 32, fontWeight: '800', color: Colors.textPrimary,
     letterSpacing: -0.5, lineHeight: 38, marginBottom: 10,
@@ -194,7 +204,7 @@ const styles = StyleSheet.create({
 
   bottomSection: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,

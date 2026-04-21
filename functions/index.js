@@ -51,14 +51,14 @@ function buildEmailHTML(otp, type) {
   const title = type === 'recovery' ? 'Đặt lại mật khẩu' : 'Xác nhận đăng ký';
   const subtitle =
     type === 'recovery'
-      ? 'Dưới đây là mã OTP để đặt lại mật khẩu tài khoản Bump của bạn:'
-      : 'Dưới đây là mã OTP để hoàn tất đăng ký tài khoản Bump:';
+      ? 'Dưới đây là mã OTP để đặt lại mật khẩu tài khoản Tibro của bạn:'
+      : 'Dưới đây là mã OTP để hoàn tất đăng ký tài khoản Tibro:';
 
   return `
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;
                 text-align:center;padding:30px;border:1px solid #e5e7eb;
                 border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-      <h1 style="font-size:28px;color:#111827;margin-bottom:4px;">📍 Bump</h1>
+      <h1 style="font-size:28px;color:#111827;margin-bottom:4px;">📍 Tibro</h1>
       <h2 style="font-size:18px;color:#10B981;margin-bottom:16px;">${title}</h2>
       <p style="font-size:15px;color:#6B7280;margin-bottom:24px;">${subtitle}</p>
       <div style="background:#F3F4F6;display:inline-block;padding:16px 32px;border-radius:12px;margin-bottom:24px;">
@@ -78,7 +78,7 @@ function buildEmailHTML(otp, type) {
 // Health check
 // =========================================================
 app.get('/', (req, res) => {
-  res.json({ status: 'Bump Backend đang hoạt động!', version: '1.0.0' });
+  res.json({ status: 'Tibro Backend đang hoạt động!', version: '1.0.0' });
 });
 
 // =========================================================
@@ -128,9 +128,9 @@ app.post('/sendOtp', async (req, res) => {
   // Gửi email qua Gmail
   try {
     await transporter.sendMail({
-      from: `"Bump App" <${GMAIL_USER}>`,
+      from: `"Tibro App" <${GMAIL_USER}>`,
       to: email, // <--- Đổi thành email người dùng đăng ký tại đây
-      subject: type === 'recovery' ? 'Đặt lại mật khẩu Bump' : 'Xác nhận đăng ký Bump',
+      subject: type === 'recovery' ? 'Đặt lại mật khẩu Tibro' : 'Xác nhận đăng ký Tibro',
       html: buildEmailHTML(otp, type),
     });
 

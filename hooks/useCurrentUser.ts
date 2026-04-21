@@ -4,11 +4,11 @@
 // Cache và update realtime nếu cần
 // =========================================================
 
-import { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../services/supabaseConfig';
-import { getMyUserId } from '../services/profileService';
+import { getMyUserId, updateOnlineStatus } from '../services/profileService';
 import { logoutUser } from '../services/authService';
 import { getSessionToken } from '../utils/storage';
 import { UserProfile } from '../services/friendService';
@@ -58,6 +58,21 @@ export const useCurrentUser = () => {
 
   useEffect(() => {
     fetchUser();
+    
+    // Ping online status mỗi phút
+    const pingStatus = () => {
+      updateOnlineStatus().catch(e => console.log('Lỗi ping status:', e));
+    };
+    
+    pingStatus(); // chạy ngay lần đầu
+    const pingInterval = setInterval(pingStatus, 60000);
+
+    // Lắng nghe app state, khi app mở lên từ nền thì ping ngay
+    const subscription = AppState.addEventListener("change", nextAppState => {
+      if (nextAppState === "active") {
+        pingStatus();
+      }
+    });
 
     // Lắng nghe thay đổi profile của chính mình
     let channel: any;
@@ -77,6 +92,8 @@ export const useCurrentUser = () => {
     }).catch(() => {});
 
     return () => {
+      clearInterval(pingInterval);
+      subscription.remove();
       if (channel) supabase.removeChannel(channel);
     };
   }, []);

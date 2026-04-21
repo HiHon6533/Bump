@@ -121,7 +121,7 @@ export default function ChatListScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.white },
+  safe: { flex: 1, backgroundColor: Colors.black },
   header: { padding: 20, paddingBottom: 10 },
   headerTitle: { fontSize: 28, fontWeight: '800', color: Colors.textPrimary },
   loader: { marginTop: 40 },

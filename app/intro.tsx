@@ -4,22 +4,22 @@
 // 3 trang slide với design hiện đại, full animation, StyleSheet.
 // =========================================================
 
+import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
   Dimensions,
+  FlatList,
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  StyleSheet,
   StatusBar,
-  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { setIntroShown } from '../utils/storage';
 import { Colors } from '../styles/colors';
+import { setIntroShown } from '../utils/storage';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -33,11 +33,11 @@ const slides = [
     subtitle: 'Thời gian thực',
     description:
       'Tự động chia sẻ vị trí của bạn với bạn bè theo thời gian thực. Luôn biết bạn bè đang ở đâu!',
-    emoji: '📍',
-    bg: '#EEF2FF',
+    image: require('../assets/images/intro_1_removebg.png'),
+    bg: '#0D1025',
     cardBg: '#6C63FF',
-    accent: '#6C63FF',
-    decorColor: 'rgba(108,99,255,0.12)',
+    accent: '#818CF8',
+    decorColor: 'rgba(108,99,255,0.1)',
   },
   {
     id: '2',
@@ -45,11 +45,11 @@ const slides = [
     subtitle: 'Gần hơn mỗi ngày',
     description:
       'Khám phá và kết nối với những người đang ở gần bạn. Xây dựng mạng lưới xã hội dựa trên vị trí.',
-    emoji: '🤝',
-    bg: '#F0FDF4',
+    image: require('../assets/images/intro_2_removebg.png'),
+    bg: '#0B1520',
     cardBg: '#10B981',
-    accent: '#10B981',
-    decorColor: 'rgba(16,185,129,0.12)',
+    accent: '#34D399',
+    decorColor: 'rgba(16,185,129,0.1)',
   },
   {
     id: '3',
@@ -57,11 +57,11 @@ const slides = [
     subtitle: 'Đơn giản & Nhanh chóng',
     description:
       'Chỉ cần chạm điện thoại với người khác để "bump" — trao đổi thông tin tức thì, không cần gõ gì cả!',
-    emoji: '⚡',
-    bg: '#FFFBEB',
+    image: require('../assets/images/intro_3_removebg.png'),
+    bg: '#151005',
     cardBg: '#F59E0B',
-    accent: '#F59E0B',
-    decorColor: 'rgba(245,158,11,0.12)',
+    accent: '#FBBF24',
+    decorColor: 'rgba(245,158,11,0.1)',
   },
 ];
 
@@ -78,11 +78,9 @@ function SlideItem({ item }: { item: Slide }) {
       <View style={[styles.decorCircleSm, { backgroundColor: item.decorColor }]} />
       <View style={[styles.decorCircleTop, { backgroundColor: item.decorColor }]} />
 
-      {/* ---- Illustration card ---- */}
-      <View style={[styles.illustrationCard, { backgroundColor: item.cardBg }]}>
-        {/* Inner highlight */}
-        <View style={styles.cardHighlight} />
-        <Text style={styles.emojiLarge}>{item.emoji}</Text>
+      {/* ---- Illustration — No card background, just the large image ---- */}
+      <View style={styles.illustrationCard}>
+        <Image source={item.image} style={styles.illustrationImage} resizeMode="contain" />
       </View>
 
       {/* ---- Subtitle chip ---- */}
@@ -203,31 +201,16 @@ export default function IntroScreen() {
         {/* Dots */}
         <PaginationDots currentIndex={currentIndex} accent={currentSlide.accent} />
 
-        {/* Row: Back + Next button */}
+        {/* Row: Full-width Next button */}
         <View style={styles.navRow}>
-          {/* Back button (Ẩn ở slide đầu) */}
-          {currentIndex > 0 ? (
-            <TouchableOpacity
-              onPress={() =>
-                flatListRef.current?.scrollToIndex({ index: currentIndex - 1, animated: true })
-              }
-              style={[styles.backBtn, { borderColor: currentSlide.accent }]}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.backBtnText, { color: currentSlide.accent }]}>←</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.backBtnPlaceholder} />
-          )}
-
-          {/* Next / Start button */}
+          {/* Next / Start button expanded to full width */}
           <TouchableOpacity
             onPress={handleNext}
             style={[styles.nextBtn, { backgroundColor: currentSlide.accent }]}
             activeOpacity={0.85}
           >
             <Text style={styles.nextBtnText}>
-              {isLastSlide ? '🚀  Bắt Đầu' : 'Tiếp Theo  →'}
+              {isLastSlide ? 'Bắt Đầu' : 'Tiếp Theo  →'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -309,21 +292,14 @@ const styles = StyleSheet.create({
     left: 30,
   },
 
-  // ---- Illustration card ----
+  // ---- Illustration Container ----
   illustrationCard: {
-    width: 180,
-    height: 180,
-    borderRadius: 48,
+    width: 280,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 36,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 12,
+    marginBottom: 20,
     position: 'relative',
-    overflow: 'hidden',
   },
   cardHighlight: {
     position: 'absolute',
@@ -334,8 +310,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  emojiLarge: {
-    fontSize: 88,
+  illustrationImage: {
+    width: '100%',
+    height: '100%',
   },
 
   // ---- Subtitle chip ----
@@ -362,7 +339,7 @@ const styles = StyleSheet.create({
   },
   slideDesc: {
     fontSize: 16,
-    color: Colors.gray500,
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 26,
     maxWidth: 320,

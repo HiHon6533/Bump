@@ -109,6 +109,13 @@ export const loginUser = async (
 // Đăng xuất
 // =========================================================
 export const logoutUser = async (): Promise<void> => {
+  // Lùi thời gian về 2 phút trước khi đăng xuất để bạn bè thấy chữ "Hoạt động 2 phút trước" ngay lập tức!
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user?.id) {
+    const twoMinsAgo = new Date(Date.now() - 120000).toISOString();
+    await supabase.from('users').update({ online_at: twoMinsAgo }).eq('id', session.user.id);
+  }
+
   await supabase.auth.signOut();
   await clearUserSession();
 };

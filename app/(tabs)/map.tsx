@@ -5,7 +5,7 @@
 // =========================================================
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Polyline, Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../styles/colors';
@@ -130,50 +130,37 @@ export default function MapScreen() {
     Alert.alert('Lỗi vị trí', errorMsg);
   }
 
-  // ---- Chỉ đường handler ----
+  // ---- Chỉ đường handler: mở Google Maps ----
   const handleDirections = (friend: UserLocation) => {
     if (!location) return;
     const myLat = location.coords.latitude;
     const myLng = location.coords.longitude;
     const fLat = friend.latitude;
     const fLng = friend.longitude;
+    const friendName = friend.user?.name || 'Bạn bè';
 
-    // Haversine distance (km)
-    const toRad = (v: number) => (v * Math.PI) / 180;
-    const R = 6371;
-    const dLat = toRad(fLat - myLat);
-    const dLon = toRad(fLng - myLng);
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(myLat)) * Math.cos(toRad(fLat)) * Math.sin(dLon / 2) ** 2;
-    const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    // Build intermediate points for a curved route (bezier-like)
-    const midLat = (myLat + fLat) / 2;
-    const midLng = (myLng + fLng) / 2;
-    const coords = [
-      { latitude: myLat, longitude: myLng },
-      { latitude: midLat, longitude: midLng },
-      { latitude: fLat, longitude: fLng },
-    ];
-
-    setDirectionsRoute({
-      coords,
-      friendName: friend.user?.name || 'Bạn bè',
-      distanceKm,
+    // Mở Google Maps với chế độ chỉ đường
+    const url = Platform.select({
+      ios: `comgooglemaps://?saddr=${myLat},${myLng}&daddr=${fLat},${fLng}&directionsmode=driving`,
+      android: `google.navigation:q=${fLat},${fLng}&mode=d`,
     });
-    setSelectedFriend(null);
 
-    // Zoom fit
-    const minLat = Math.min(myLat, fLat);
-    const maxLat = Math.max(myLat, fLat);
-    const minLng = Math.min(myLng, fLng);
-    const maxLng = Math.max(myLng, fLng);
-    mapRef.current?.animateToRegion({
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max(0.01, (maxLat - minLat) * 1.5),
-      longitudeDelta: Math.max(0.01, (maxLng - minLng) * 1.5),
-    }, 800);
+    const webUrl = `https://www.google.com/maps/dir/?api=1&origin=${myLat},${myLng}&destination=${fLat},${fLng}&travelmode=driving`;
+
+    if (url) {
+      Linking.canOpenURL(url).then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          // Nếu không có Google Maps, mở trên trình duyệt
+          Linking.openURL(webUrl);
+        }
+      });
+    } else {
+      Linking.openURL(webUrl);
+    }
+
+    setSelectedFriend(null);
   };
 
   const fitToRoute = () => {

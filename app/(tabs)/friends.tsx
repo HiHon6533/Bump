@@ -317,7 +317,7 @@ export default function FriendsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.white },
+  safe: { flex: 1, backgroundColor: Colors.black },
   header: { padding: 20, paddingBottom: 10 },
   headerTitle: { fontSize: 28, fontWeight: '800', color: Colors.textPrimary },
   
@@ -383,14 +383,14 @@ const styles = StyleSheet.create({
   // Search
   searchBox: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.inputBg,
     marginHorizontal: 20,
     marginBottom: 16,
     paddingHorizontal: 16,
     height: 50,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: Colors.inputBorder,
   },
   searchInput: {
     flex: 1,

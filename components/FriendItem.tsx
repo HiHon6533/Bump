@@ -22,8 +22,7 @@ const formatLastSeen = (onlineAt?: string): string => {
   if (!onlineAt) return 'Chưa hoạt động';
   const diff = Date.now() - new Date(onlineAt).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Đang hoạt động';
-  if (mins < 5) return 'Đang hoạt động';
+  if (mins < 2) return 'Đang hoạt động';
   if (mins < 60) return `Hoạt động ${mins} phút trước`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `Hoạt động ${hours} giờ trước`;
@@ -32,9 +31,9 @@ const formatLastSeen = (onlineAt?: string): string => {
 };
 
 export default function FriendItem({ user, subText, onPress, rightAction, isUnread }: FriendItemProps) {
-  // Logic check online: online_at trong vòng 5 phút
+  // Logic check online: online_at trong vòng 2 phút (do ping 1 phút/lần)
   const isOnline = user.online_at
-    ? Date.now() - new Date(user.online_at).getTime() < 5 * 60 * 1000
+    ? Date.now() - new Date(user.online_at).getTime() < 2 * 60 * 1000
     : false;
 
   const lastSeenText = formatLastSeen(user.online_at);
@@ -79,13 +78,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     marginHorizontal: 12,
     marginVertical: 4,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -116,7 +115,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 2.5,
-    borderColor: Colors.white,
+    borderColor: Colors.cardBg,
   },
   infoContainer: {
     flex: 1,

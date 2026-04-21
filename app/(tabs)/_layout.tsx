@@ -10,6 +10,7 @@ import { Colors } from '../../styles/colors';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../../services/supabaseConfig';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import IncomingCallModal from '../../components/IncomingCallModal';
 
 export default function TabLayout() {
   const { currentUser } = useCurrentUser();
@@ -130,13 +131,14 @@ export default function TabLayout() {
   };
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.white,
+          backgroundColor: '#0F1221',
           borderTopWidth: 1,
           borderTopColor: Colors.gray100,
           paddingTop: Platform.OS === 'ios' ? 8 : 0,
@@ -145,7 +147,7 @@ export default function TabLayout() {
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
+          shadowOpacity: 0.3,
           shadowRadius: 6,
         },
         tabBarLabelStyle: {
@@ -198,6 +200,8 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <IncomingCallModal />
+    </>
   );
 }
 
@@ -214,7 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: Colors.white,
+    borderColor: '#0F1221',
   },
   badgeText: {
     color: Colors.white,

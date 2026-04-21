@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../styles/colors';
 import { getMessages, sendMessage, subscribeToMessages, markMessagesAsRead, Message } from '../../services/chatService';
+import { supabase } from '../../services/supabaseConfig';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import ChatBubble from '../../components/ChatBubble';
 import { Image } from 'react-native';
@@ -78,6 +79,50 @@ export default function ChatDetailScreen() {
     }
   };
 
+  const handleStartCall = async (isVideo: boolean) => {
+    if (!currentUser || !id) return;
+    
+    // Tìm receiverId và thông tin receiver thông qua bảng conversations
+    // (Bảng conversations hiện không có avatar/name trực tiếp, nên ta có thể lấy từ db
+    // hoặc dùng params từ route)
+    const { data: conv } = await supabase.from('conversations').select('user1_id, user2_id').eq('id', id).single();
+    if (conv) {
+      const receiverId = conv.user1_id === currentUser.id ? conv.user2_id : conv.user1_id;
+      
+      // INSERT vào bảng call_signals → postgres_changes sẽ tự bắn tín hiệu tới người nhận
+      const { data: signal, error } = await supabase.from('call_signals').insert({
+        caller_id: currentUser.id,
+        receiver_id: receiverId,
+        caller_name: currentUser.name || 'User',
+        caller_avatar: currentUser.avatar || '',
+        call_id: id,
+        is_video: isVideo,
+        status: 'ringing'
+      }).select('id').single();
+      
+      if (error) {
+        console.log('[Call] Lỗi gửi tín hiệu gọi:', error.message);
+        return; // Dừng nếu lỗi
+      } else {
+        console.log('[Call] ✅ Đã gửi tín hiệu gọi tới:', receiverId);
+        
+        // Chuyển người gọi vào phòng chờ (CallingScreen)
+        router.push({
+          pathname: '/calling',
+          params: { 
+            callID: id, 
+            userID: currentUser.id, 
+            userName: currentUser.name || 'User',
+            receiverName: name || 'Người dùng', // Lấy từ route params của chat screen
+            receiverAvatar: avatar || '',     // Lấy từ route params của chat screen
+            signalId: signal.id,
+            isVideo: isVideo ? 'true' : 'false' 
+          }
+        });
+      }
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView 
@@ -100,6 +145,16 @@ export default function ChatDetailScreen() {
               </View>
             )}
             <Text style={styles.headerName}>{name}</Text>
+          </View>
+          
+          {/* Nút gọi điện / video */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => handleStartCall(false)} style={styles.actionBtn}>
+              <Feather name="phone" size={22} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleStartCall(true)} style={styles.actionBtn}>
+              <Feather name="video" size={24} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -160,7 +215,7 @@ export default function ChatDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.white },
+  safe: { flex: 1, backgroundColor: Colors.black },
   container: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -169,7 +224,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray100,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.black,
   },
   backBtn: { marginRight: 12, padding: 4 },
   headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -177,6 +232,8 @@ const styles = StyleSheet.create({
   headerAvatarPlaceholder: { backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   headerAvatarText: { color: Colors.primary, fontWeight: 'bold', fontSize: 16 },
   headerName: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  actionBtn: { padding: 8, marginLeft: 8 },
   
   listContent: {
     paddingHorizontal: 16,
@@ -190,12 +247,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.gray100,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.black,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.gray100,
+    backgroundColor: Colors.cardBg,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -203,6 +260,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 120,
     fontSize: 15,
+    color: Colors.textPrimary,
   },
   sendBtn: {
     width: 44,

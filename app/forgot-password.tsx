@@ -3,18 +3,24 @@
 // KHÔNG thay đổi logic xác thực
 // =========================================================
 
-import React, { useState, useRef } from 'react';
+import { Image as ExpoImage } from 'expo-image';
+import { useRouter } from 'expo-router';
+import React, { useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  Animated, Alert, StatusBar,
+  Alert,
+  Animated,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import CustomButton from '../components/CustomButton';
+import CustomInput from '../components/CustomInput';
 import { sendOTP } from '../services/otpService';
 import { Colors } from '../styles/colors';
-import { FontSize, Spacing, BorderRadius } from '../styles/globalStyles';
-import CustomInput from '../components/CustomInput';
-import CustomButton from '../components/CustomButton';
+import { FontSize } from '../styles/globalStyles';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -36,7 +42,7 @@ export default function ForgotPasswordScreen() {
   // =========================================================
   const handleSendOTP = async () => {
     if (!email.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email.'); return; }
-    if (!/\S+@\S+\.\S+/.test(email)) { Alert.alert('Lỗi', 'Địa chỉ email không hợp lệ.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Alert.alert('Lỗi', 'Địa chỉ email không hợp lệ.'); return; }
 
     setLoading(true);
     try {
@@ -51,7 +57,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.warningLight} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
 
       {/* ── TOP SECTION ── */}
       <View style={styles.topSection}>
@@ -63,8 +69,19 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
 
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          <View style={styles.iconBadge}>
-            <Text style={styles.iconEmoji}>🔑</Text>
+          <View style={styles.brandHeader}>
+            <ExpoImage
+              source={require('../assets/images/Logo_tibro_noname_removebg.png')}
+              style={styles.logoIcon}
+              contentFit="contain"
+              transition={0}
+            />
+            <ExpoImage
+              source={require('../assets/images/Logo_name_tibro_removebg.png')}
+              style={styles.logoName}
+              contentFit="contain"
+              transition={0}
+            />
           </View>
           <Text style={styles.title}>Quên{'\n'}mật khẩu?</Text>
           <Text style={styles.subtitle}>Nhập email của bạn, chúng tôi sẽ gửi mã OTP 6 chữ số để xác minh.</Text>
@@ -93,7 +110,7 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <CustomButton
-          label="📨  Gửi mã OTP"
+          label="Gửi mã OTP"
           onPress={handleSendOTP}
           loading={loading}
           color={Colors.warning}
@@ -111,7 +128,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const TOP_BG = Colors.warningLight;
+const TOP_BG = Colors.black;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: TOP_BG },
 
@@ -124,22 +141,20 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 16 },
   backBadge: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
+    shadowOpacity: 0.2, shadowRadius: 6, elevation: 3,
   },
   backArrow: { fontSize: 18, color: Colors.textPrimary, fontWeight: '600' },
-  iconBadge: {
-    width: 56, height: 56, borderRadius: 16,
-    backgroundColor: Colors.white,
-    alignItems: 'center', justifyContent: 'center',
+  brandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
-    shadowColor: Colors.warning,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
-    elevation: 4,
+    gap: 8,
   },
-  iconEmoji: { fontSize: 28 },
+  logoIcon: { width: 48, height: 48 },
+  logoName: { width: 100, height: 36, marginTop: 4 },
   title: {
     fontSize: 32, fontWeight: '800', color: Colors.textPrimary,
     letterSpacing: -0.5, lineHeight: 38, marginBottom: 10,
@@ -148,7 +163,7 @@ const styles = StyleSheet.create({
 
   bottomSection: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
@@ -163,7 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, padding: 14, marginBottom: 20, gap: 10,
   },
   tipIcon: { fontSize: 15 },
-  tipText: { flex: 1, fontSize: FontSize.sm, color: Colors.warningDark, lineHeight: 20 },
+  tipText: { flex: 1, fontSize: FontSize.sm, color: Colors.warning, lineHeight: 20 },
 
   actionBtn: { marginBottom: 20 },
 

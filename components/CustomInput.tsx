@@ -67,7 +67,7 @@ export default function CustomInput({
 
   const animatedBg = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [Colors.inputBg, Colors.white],
+    outputRange: [Colors.inputBg, Colors.cardBg],
   });
 
   return (

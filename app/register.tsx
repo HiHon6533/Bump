@@ -3,20 +3,28 @@
 // KHÔNG thay đổi logic xác thực
 // =========================================================
 
-import React, { useState, useRef } from 'react';
+import { Image as ExpoImage } from 'expo-image';
+import { useRouter } from 'expo-router';
+import React, { useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  Animated, Alert, ScrollView, KeyboardAvoidingView,
-  Platform, StatusBar,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import CustomButton from '../components/CustomButton';
+import CustomInput from '../components/CustomInput';
 import { sendOTP } from '../services/otpService';
 import { supabase } from '../services/supabaseConfig';
 import { Colors } from '../styles/colors';
-import { FontSize, Spacing } from '../styles/globalStyles';
-import CustomInput from '../components/CustomInput';
-import CustomButton from '../components/CustomButton';
+import { FontSize } from '../styles/globalStyles';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -43,7 +51,7 @@ export default function RegisterScreen() {
     const trimmedUsername = username.trim();
     if (!trimmedUsername) { Alert.alert('Lỗi', 'Vui lòng nhập tên đăng nhập.'); return; }
     if (!/^[a-zA-Z0-9_.]+$/.test(trimmedUsername)) { Alert.alert('Lỗi', 'Tên đăng nhập chỉ được chứa chữ cái, số, dấu chấm (.) và dấu gạch dưới (_), không có khoảng trắng.'); return; }
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) { Alert.alert('Lỗi', 'Email không hợp lệ.'); return; }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Alert.alert('Lỗi', 'Email không hợp lệ.'); return; }
     if (password.length < 6) { Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự.'); return; }
     if (password !== confirmPassword) { Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.'); return; }
 
@@ -76,17 +84,28 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.successLight} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
           {/* ── TOP SECTION ── */}
           <View style={styles.topSection}>
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-              <View style={styles.iconBadge}>
-                <Text style={styles.iconEmoji}>🚀</Text>
+              <View style={styles.brandHeader}>
+                <ExpoImage
+                  source={require('../assets/images/Logo_tibro_noname_removebg.png')}
+                  style={styles.logoIcon}
+                  contentFit="contain"
+                  transition={0}
+                />
+                <ExpoImage
+                  source={require('../assets/images/Logo_name_tibro_removebg.png')}
+                  style={styles.logoName}
+                  contentFit="contain"
+                  transition={0}
+                />
               </View>
-              <Text style={styles.title}>Tạo{'\n'}tài khoản</Text>
+              <Text style={styles.title}>Tạo tài khoản</Text>
               <Text style={styles.subtitle}>Gia nhập cộng đồng Bump và bắt đầu chia sẻ vị trí!</Text>
             </Animated.View>
           </View>
@@ -98,7 +117,7 @@ export default function RegisterScreen() {
             <CustomInput label="Mật khẩu" placeholder="Tối thiểu 6 ký tự" isPassword value={password} onChangeText={setPassword} accentColor={Colors.success} />
             <CustomInput label="Xác nhận mật khẩu" placeholder="Nhập lại mật khẩu" isPassword value={confirmPassword} onChangeText={setConfirmPassword} accentColor={Colors.success} />
 
-            <CustomButton label="📨  Gửi mã xác nhận" onPress={handleRegister} loading={loading} color={Colors.success} style={styles.actionBtn} />
+            <CustomButton label="Gửi mã xác nhận" onPress={handleRegister} loading={loading} color={Colors.success} style={styles.actionBtn} />
 
             <View style={styles.linkRow}>
               <Text style={styles.linkLabel}>Đã có tài khoản? </Text>
@@ -114,7 +133,7 @@ export default function RegisterScreen() {
   );
 }
 
-const TOP_BG = Colors.successLight;
+const TOP_BG = Colors.black;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: TOP_BG },
   flex: { flex: 1 },
@@ -126,16 +145,14 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 36,
   },
-  iconBadge: {
-    width: 56, height: 56, borderRadius: 16,
-    backgroundColor: Colors.white,
-    alignItems: 'center', justifyContent: 'center',
+  brandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
-    shadowColor: Colors.success,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10,
-    elevation: 4,
+    gap: 8,
   },
-  iconEmoji: { fontSize: 28 },
+  logoIcon: { width: 48, height: 48 },
+  logoName: { width: 100, height: 36, marginTop: 4 },
   title: {
     fontSize: 32, fontWeight: '800', color: Colors.textPrimary,
     letterSpacing: -0.5, lineHeight: 38, marginBottom: 10,
@@ -144,7 +161,7 @@ const styles = StyleSheet.create({
 
   bottomSection: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,

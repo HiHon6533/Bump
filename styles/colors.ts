@@ -1,73 +1,74 @@
 // =========================================================
 // styles/colors.ts
-// Hệ thống màu sắc nâng cấp — vibrant & modern
+// Hệ thống màu sắc — Dark Theme (Deep Indigo)
+// Lấy cảm hứng từ Splash Screen gradient
 // =========================================================
 
 export const Colors = {
-  // ---- Primary Brand Colors (Xanh dương đậm nổi bật) ----
-  primary: '#4F46E5',          // Indigo đậm - màu chính vibrant
-  primaryDark: '#3730A3',      // Indigo tối hơn
-  primaryLight: '#EEF2FF',     // Indigo nhạt (background)
+  // ---- Primary Brand Colors (Indigo nổi bật trên nền tối) ----
+  primary: '#6366F1',          // Indigo sáng - nổi bật trên dark
+  primaryDark: '#4F46E5',      // Indigo đậm
+  primaryLight: 'rgba(99, 102, 241, 0.15)', // Indigo mờ cho backgrounds
 
   // ---- Secondary & Accent ----
   accent: '#EC4899',           // Hồng hot pink
-  accentLight: '#FCE7F3',
+  accentLight: 'rgba(236, 72, 153, 0.15)',
 
   // ---- Register Green ----
-  success: '#10B981',
-  successDark: '#059669',
-  successLight: '#D1FAE5',
+  success: '#34D399',
+  successDark: '#10B981',
+  successLight: 'rgba(52, 211, 153, 0.15)',
 
   // ---- Forgot Orange ----
-  warning: '#F59E0B',
-  warningDark: '#D97706',
-  warningLight: '#FEF3C7',
+  warning: '#FBBF24',
+  warningDark: '#F59E0B',
+  warningLight: 'rgba(251, 191, 36, 0.15)',
 
   // ---- Error Red ----
-  error: '#EF4444',
-  errorLight: '#FEE2E2',
+  error: '#F87171',
+  errorLight: 'rgba(248, 113, 113, 0.15)',
 
-  // ---- Neutrals ----
-  white: '#FFFFFF',
-  black: '#0F172A',
+  // ---- Neutrals (Dark palette) ----
+  white: '#F1F5F9',           // "White" trên dark = xám rất nhạt
+  black: '#0B0F1A',           // Nền tối nhất
 
-  gray50: '#F8FAFC',
-  gray100: '#F1F5F9',
-  gray200: '#E2E8F0',
-  gray300: '#CBD5E1',
-  gray400: '#94A3B8',
-  gray500: '#64748B',
-  gray600: '#475569',
-  gray700: '#334155',
-  gray800: '#1E293B',
-  gray900: '#0F172A',
+  gray50: '#111827',          // Nhẹ hơn black 1 chút
+  gray100: '#1E2540',         // Viền, separator
+  gray200: '#2A3050',         // Border input
+  gray300: '#3B4468',         // 
+  gray400: '#6B7A99',         // Icon mờ
+  gray500: '#8896B3',         // Text phụ mờ
+  gray600: '#A0AEC0',         // 
+  gray700: '#CBD5E1',         // Label
+  gray800: '#E2E8F0',         // Text sáng
+  gray900: '#F1F5F9',         // Text trắng nhất
 
   // ---- Background Gradients ----
-  gradientStart: '#EEF2FF',
-  gradientEnd: '#FFFFFF',
+  gradientStart: '#0B0F1A',
+  gradientEnd: '#111827',
 
   // ---- Splash Background ----
-  splashBg: '#4F46E5',
+  splashBg: '#0B0F1A',
 
   // ---- Input ----
-  inputBorder: '#E2E8F0',
-  inputBg: '#F8FAFC',
-  inputFocusBorder: '#4F46E5',
-  inputText: '#0F172A',
-  placeholder: '#94A3B8',
+  inputBorder: '#2A3050',
+  inputBg: '#151929',
+  inputFocusBorder: '#6366F1',
+  inputText: '#E2E8F0',
+  placeholder: '#6B7A99',
 
   // ---- Cards ----
-  cardBg: '#FFFFFF',
-  cardShadow: 'rgba(79, 70, 229, 0.08)',
+  cardBg: '#1A1F36',
+  cardShadow: 'rgba(0, 0, 0, 0.3)',
 
   // ---- Text ----
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
-  textLink: '#4F46E5',
+  textPrimary: '#F1F5F9',
+  textSecondary: '#94A3B8',
+  textMuted: '#6B7A99',
+  textLink: '#818CF8',
 };
 
-// Theme màu cho từng màn hình
+// Theme màu cho từng màn hình (tông tối)
 export const ScreenTheme = {
   login: {
     color: Colors.primary,

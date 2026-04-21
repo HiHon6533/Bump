@@ -177,7 +177,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.gray50 },
+  safe: { flex: 1, backgroundColor: Colors.black },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingBottom: 40 },
   header: {
@@ -192,20 +192,20 @@ const styles = StyleSheet.create({
   avatarImg: { width: '100%', height: '100%', borderRadius: 50 },
   avatarPlaceholder: { width: '100%', height: '100%', borderRadius: 50, backgroundColor: Colors.gray200, alignItems: 'center', justifyContent: 'center' },
   avatarPlaceholderText: { fontSize: 40, fontWeight: 'bold', color: Colors.gray500 },
-  cameraIconBadge: { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.gray50 },
+  cameraIconBadge: { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.black },
   uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
   emailText: { fontSize: FontSize.sm, color: Colors.textMuted },
   usernameText: { fontSize: FontSize.base, fontWeight: '600', color: Colors.primary, marginTop: 4 },
 
   infoSection: { paddingHorizontal: 20, marginTop: 10 },
-  formCard: { backgroundColor: Colors.white, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  displayCard: { backgroundColor: Colors.white, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  formCard: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 2 },
+  displayCard: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 2 },
   label: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: 4 },
   value: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
 
   settingsSection: { paddingHorizontal: 20, marginTop: 32 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary, marginBottom: 16 },
-  settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.white, padding: 16, borderRadius: 16, marginBottom: 12 },
+  settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.cardBg, padding: 16, borderRadius: 16, marginBottom: 12 },
   settingTextRow: { flexDirection: 'row', alignItems: 'center' },
   settingIconBox: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   settingLabel: { fontSize: FontSize.base, fontWeight: '600', color: Colors.textPrimary },
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   toggleWrap: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: Colors.primaryLight },
   toggleOff: { backgroundColor: Colors.gray200 },
-  toggleCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  toggleCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.gray700, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
   toggleCircleOn: { alignSelf: 'flex-end', backgroundColor: Colors.primary },
   toggleCircleOff: { alignSelf: 'flex-start' },
 
