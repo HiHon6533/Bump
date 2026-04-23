@@ -28,12 +28,16 @@ export default function ProfileScreen() {
   const [username, setUsername] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [gender, setGender] = useState('');
+  const [birthday, setBirthday] = useState('');
 
   // Sync data to form when enter edit mode
   const handleEditToggle = () => {
     if (!editMode && currentUser) {
       setName(currentUser.name || '');
       setUsername(currentUser.username || '');
+      setGender(currentUser.gender || '');
+      setBirthday(currentUser.birthday || '');
     }
     setEditMode(!editMode);
   };
@@ -42,7 +46,12 @@ export default function ProfileScreen() {
     if (!name.trim()) return Alert.alert('Lỗi', 'Tên không được để trống');
     setSaving(true);
     try {
-      await updateProfile({ name: name.trim(), username: username.trim() });
+      await updateProfile({ 
+        name: name.trim(), 
+        username: username.trim(),
+        gender: gender.trim(),
+        birthday: birthday.trim()
+      });
       await refetch();
       setEditMode(false);
     } catch (e: any) {
@@ -134,12 +143,39 @@ export default function ProfileScreen() {
             <View style={styles.formCard}>
               <CustomInput label="Họ và tên" value={name} onChangeText={setName} accentColor={Colors.primary} />
               <CustomInput label="Username (Tùy chọn)" value={username} onChangeText={setUsername} autoCapitalize="none" accentColor={Colors.primary} />
+              <CustomInput label="Giới tính" value={gender} onChangeText={setGender} placeholder="Ví dụ: Nam, Nữ..." accentColor={Colors.primary} />
+              <CustomInput label="Ngày sinh" value={birthday} onChangeText={setBirthday} placeholder="DD/MM/YYYY" accentColor={Colors.primary} />
               <CustomButton label="Lưu thay đổi" onPress={handleSave} loading={saving} color={Colors.primary} style={{ marginTop: 16 }} />
             </View>
           ) : (
             <View style={styles.displayCard}>
-              <Text style={styles.label}>Tên hiển thị</Text>
-              <Text style={styles.value}>{currentUser.name}</Text>
+              <View style={styles.infoRow}>
+                <Feather name="user" size={18} color={Colors.textMuted} />
+                <View style={styles.infoTexts}>
+                  <Text style={styles.infoLabel}>Tên hiển thị</Text>
+                  <Text style={styles.infoValue}>{currentUser.name}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Feather name="users" size={18} color={Colors.textMuted} />
+                <View style={styles.infoTexts}>
+                  <Text style={styles.infoLabel}>Giới tính</Text>
+                  <Text style={[styles.infoValue, !currentUser.gender && styles.emptyValue]}>
+                    {currentUser.gender || 'Chưa cập nhật'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                <Feather name="calendar" size={18} color={Colors.textMuted} />
+                <View style={styles.infoTexts}>
+                  <Text style={styles.infoLabel}>Ngày sinh</Text>
+                  <Text style={[styles.infoValue, !currentUser.birthday && styles.emptyValue]}>
+                    {currentUser.birthday || 'Chưa cập nhật'}
+                  </Text>
+                </View>
+              </View>
             </View>
           )}
         </View>
@@ -190,7 +226,7 @@ const styles = StyleSheet.create({
   avatarSection: { alignItems: 'center', paddingVertical: 20 },
   avatarWrapper: { position: 'relative', width: 100, height: 100, borderRadius: 50, marginBottom: 12 },
   avatarImg: { width: '100%', height: '100%', borderRadius: 50 },
-  avatarPlaceholder: { width: '100%', height: '100%', borderRadius: 50, backgroundColor: Colors.gray200, alignItems: 'center', justifyContent: 'center' },
+  avatarPlaceholder: { width: '100%', height: '100%', borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   avatarPlaceholderText: { fontSize: 40, fontWeight: 'bold', color: Colors.gray500 },
   cameraIconBadge: { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.black },
   uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
@@ -200,8 +236,18 @@ const styles = StyleSheet.create({
   infoSection: { paddingHorizontal: 20, marginTop: 10 },
   formCard: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 2 },
   displayCard: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 2 },
-  label: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: 4 },
-  value: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
+  
+  statsGrid: { display: 'none' },
+  statBox: { display: 'none' },
+  statDivider: { display: 'none' },
+  statNumber: { display: 'none' },
+  statLabel: { display: 'none' },
+  
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  infoTexts: { marginLeft: 16 },
+  infoLabel: { fontSize: 12, color: Colors.textMuted, marginBottom: 2 },
+  infoValue: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  emptyValue: { color: Colors.textMuted, fontStyle: 'italic', fontWeight: '400' },
 
   settingsSection: { paddingHorizontal: 20, marginTop: 32 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary, marginBottom: 16 },
@@ -212,8 +258,8 @@ const styles = StyleSheet.create({
   
   toggleWrap: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: Colors.primaryLight },
-  toggleOff: { backgroundColor: Colors.gray200 },
-  toggleCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.gray700, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
+  toggleOff: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  toggleCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
   toggleCircleOn: { alignSelf: 'flex-end', backgroundColor: Colors.primary },
   toggleCircleOff: { alignSelf: 'flex-start' },
 

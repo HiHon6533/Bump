@@ -4,11 +4,12 @@
 // Tích hợp: UserBottomSheet, MapActionPanel, Polyline lịch sử
 // =========================================================
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking, DeviceEventEmitter } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Polyline, Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../styles/colors';
+import { supabase } from '../../services/supabaseConfig';
 import { useLocation } from '../../hooks/useLocation';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { getFriendsLocations, UserLocation, isSharingEnabled } from '../../services/locationService';
@@ -18,21 +19,30 @@ import { MomentData, getMapMoments } from '../../services/momentService';
 import MapMarker from '../../components/MapMarker';
 import UserBottomSheet from '../../components/UserBottomSheet';
 import MapActionPanel from '../../components/MapActionPanel';
+import BumpModal from '../../components/BumpModal';
 import mapStyle from '../../styles/mapStyle.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { Image } from 'expo-image';
+import { getAllIntimacies, performBump } from '../../services/intimacyService';
+import { haversineDistance } from '../../components/UserBottomSheet';
+import { getUnreadCount, subscribeToNotifications } from '../../services/notificationService';
+import { getAnnouncements } from '../../services/announcementService';
+import NotificationPanel from '../../components/NotificationPanel';
+import { sendPops, getUnseenPops, markPopsAsSeen, PopData } from '../../services/popService';
+import EmojiRain from '../../components/EmojiRain';
 
 export default function MapScreen() {
   const {
     location, errorMsg,
     isSharing, setIsSharing,
     saveHistory, setSaveHistory,
-    showTrail, setShowTrail,
   } = useLocation();
   const { currentUser } = useCurrentUser();
   const router = useRouter();
+  const isFocused = useIsFocused(); // true khi đang ở tab bản đồ
   const [friendsLocations, setFriendsLocations] = useState<UserLocation[]>([]);
   const mapRef = React.useRef<MapView>(null);
 
@@ -40,11 +50,29 @@ export default function MapScreen() {
   const [selectedFriend, setSelectedFriend] = useState<UserLocation | null>(null);
   const [showPanel, setShowPanel] = useState(false);
 
-  // Trail data
-  const [trailCoords, setTrailCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  // Notifications
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [hasAnnouncements, setHasAnnouncements] = useState(false);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+
+  // Intimacy
+  const [intimacyMap, setIntimacyMap] = useState<Map<string, number>>(new Map());
+
+  // Bump Modal
+  const [bumpTarget, setBumpTarget] = useState<UserLocation | null>(null);
+  const [showBumpModal, setShowBumpModal] = useState(false);
+  const bumpNotifiedRef = React.useRef<Set<string>>(new Set()); // tránh nô liên tục
 
   // Moments data
   const [moments, setMoments] = useState<MomentData[]>([]);
+
+  // Emoji Pops
+  const [emojiRainData, setEmojiRainData] = useState<{ id: string; emoji: string; count: number }[]>([]);
+  const popCountRef = React.useRef<Record<string, number>>({});
+  // Mỗi emoji có timer riêng để debounce độc lập nhau
+  const popTimerRef = React.useRef<Record<string, any>>({});
+  // Lưu pops đang chờ (khi không ở tab bản đồ)
+  const pendingPopsRef = React.useRef<{ id: string; emoji: string; count: number }[]>([]);
 
   // Directions state
   const [directionsRoute, setDirectionsRoute] = useState<{
@@ -89,18 +117,96 @@ export default function MapScreen() {
     };
   }, []);
 
-  // Trail effect: tích lũy tọa độ khi di chuyển
+  // ---- Load intimacy scores ----
   useEffect(() => {
-    if (showTrail && location) {
-      setTrailCoords(prev => [
-        ...prev,
-        { latitude: location.coords.latitude, longitude: location.coords.longitude },
-      ]);
+    getAllIntimacies().then(map => setIntimacyMap(map)).catch(() => {});
+  }, []);
+
+  // ---- Load + subscribe thông báo ----
+  useEffect(() => {
+    getUnreadCount().then(setUnreadNotifCount).catch(() => {});
+    getAnnouncements().then(anns => setHasAnnouncements(anns.length > 0)).catch(() => {});
+    const unsub = subscribeToNotifications((newNotif) => {
+      setUnreadNotifCount(prev => prev + 1);
+    });
+    return unsub;
+  }, []);
+
+  // ---- isFocusedRef luôn cập nhật mới nhất ----
+  const isFocusedRef = useRef(isFocused);
+  useEffect(() => { isFocusedRef.current = isFocused; }, [isFocused]);
+
+  // ---- Realtime: nhận pop mới ngay lập tức ----
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const popsSub = supabase
+      .channel(`map_pops:live:${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'map_pops',
+        filter: `receiver_id=eq.${currentUser.id}`,
+      }, async (payload: any) => {
+        const pop = payload.new;
+        if (!pop) return;
+        if (isFocusedRef.current) {
+          // Đang ở tab bản đồ → show ngay + mark seen
+          setEmojiRainData(prev => [...prev, { id: pop.id, emoji: pop.emoji, count: pop.count }]);
+          markPopsAsSeen([pop.id]).catch(() => {});
+        } else {
+          // Ở tab khác → chỉ tăng badge, KHÔNG mark seen (để DB giữ lại cho query)
+          DeviceEventEmitter.emit('map_pops_badge_increment');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(popsSub); };
+  }, [currentUser?.id]);
+
+  // ---- Khi focus vào tab bản đồ → query DB lấy tất cả pops chưa xem ----
+  useEffect(() => {
+    if (!isFocused) return;
+    const showUnseenPops = async () => {
+      try {
+        const pops = await getUnseenPops();
+        if (pops.length === 0) {
+          DeviceEventEmitter.emit('map_pops_badge_update', 0);
+          return;
+        }
+        const rainData = pops.map(p => ({ id: p.id, emoji: p.emoji, count: p.count }));
+        await markPopsAsSeen(pops.map(p => p.id));
+        setEmojiRainData(prev => [...prev, ...rainData]);
+        DeviceEventEmitter.emit('map_pops_badge_update', 0);
+      } catch (e) {
+        console.log('showUnseenPops error:', e);
+      }
+    };
+    // Delay nhỏ để UI ổn định sau khi chuyển tab, và để Realtime kịp deliver trước
+    const timer = setTimeout(showUnseenPops, 800);
+    return () => clearTimeout(timer);
+  }, [isFocused]);
+
+  // ---- Phát hiện bạn bè ở gần (<50m) — hiển thị popup Bump ----
+  useEffect(() => {
+    if (!location || friendsLocations.length === 0) return;
+    const myLat = location.coords.latitude;
+    const myLng = location.coords.longitude;
+
+    for (const friend of friendsLocations) {
+      const dist = haversineDistance(myLat, myLng, friend.latitude, friend.longitude); // km
+      const fId = friend.user_id;
+
+      if (dist < 0.05 && !bumpNotifiedRef.current.has(fId)) {
+        // Đang ở gần nhau và chưa popup lần này
+        bumpNotifiedRef.current.add(fId);
+        setBumpTarget(friend);
+        setShowBumpModal(true);
+        break; // chỉ popup 1 người 1 lúc
+      } else if (dist >= 0.05) {
+        // Ra xa thì reset, lần sau gần lại sẽ popup lại
+        bumpNotifiedRef.current.delete(fId);
+      }
     }
-    if (!showTrail) {
-      setTrailCoords([]);
-    }
-  }, [location, showTrail]);
+  }, [location, friendsLocations]);
 
   const handleCenterMap = () => {
     if (location && mapRef.current) {
@@ -232,15 +338,6 @@ export default function MapScreen() {
             );
           })}
 
-          {/* Trail realtime polyline */}
-          {showTrail && trailCoords.length > 1 && (
-            <Polyline
-              coordinates={trailCoords}
-              strokeColor={Colors.primary}
-              strokeWidth={4}
-            />
-          )}
-
           {/* Directions route polyline + markers */}
           {directionsRoute && (
             <>
@@ -288,6 +385,28 @@ export default function MapScreen() {
           activeOpacity={0.8}
         >
           <Feather name="sliders" size={22} color="#818CF8" />
+        </TouchableOpacity>
+
+        {/* Bell Notification FAB */}
+        <TouchableOpacity
+          style={[styles.fab, styles.fabTopRight3]}
+          onPress={() => {
+            setShowNotifPanel(true);
+            setUnreadNotifCount(0); // Reset visual badge khi mở
+            setHasAnnouncements(false); // Xóa chấm đỏ hệ thống
+          }}
+          activeOpacity={0.8}
+        >
+          <Feather name="bell" size={22} color="#FBBF24" />
+          {(unreadNotifCount > 0 || hasAnnouncements) && (
+            <View style={[styles.bellBadge, unreadNotifCount === 0 && { minWidth: 12, height: 12, top: -2, right: 0 }]}>
+              {unreadNotifCount > 0 && (
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                </Text>
+              )}
+            </View>
+          )}
         </TouchableOpacity>
 
         {/* Center My Location FAB */}
@@ -389,6 +508,52 @@ export default function MapScreen() {
               params: { userId: selectedFriend.user_id, userName: name, userAvatar: avatar },
             } as any);
           }}
+          intimacyScore={intimacyMap.get(selectedFriend.user_id)}
+          isNearby={location ? haversineDistance(
+            location.coords.latitude, location.coords.longitude,
+            selectedFriend.latitude, selectedFriend.longitude
+          ) < 0.05 : false}
+          onBump={() => {
+            setBumpTarget(selectedFriend);
+            setShowBumpModal(true);
+          }}
+          onPop={(emoji) => {
+            const friendId = selectedFriend.user_id;
+            const key = `${friendId}_${emoji}`;
+            // Tăng số đếm cho emoji này
+            popCountRef.current[key] = (popCountRef.current[key] || 0) + 1;
+            // Hủy timer cũ của đúng emoji này (không ảnh hưởng timer các emoji khác)
+            if (popTimerRef.current[key]) clearTimeout(popTimerRef.current[key]);
+            popTimerRef.current[key] = setTimeout(() => {
+              const count = popCountRef.current[key] || 1;
+              sendPops(friendId, emoji, count).catch(console.error);
+              popCountRef.current[key] = 0;
+              delete popTimerRef.current[key];
+            }, 800);
+          }}
+        />
+      )}
+
+      {/* ------ Emoji Rain ------ */}
+      {emojiRainData.length > 0 && (
+        <EmojiRain
+          emojis={emojiRainData}
+          onComplete={() => setEmojiRainData([])}
+        />
+      )}
+
+      {/* ------ Bump Modal ------ */}
+      {bumpTarget && (
+        <BumpModal
+          visible={showBumpModal}
+          friendId={bumpTarget.user_id}
+          friendName={bumpTarget.user?.name || 'Bạn bè'}
+          friendAvatar={bumpTarget.user?.avatar}
+          currentScore={intimacyMap.get(bumpTarget.user_id) ?? 0}
+          onClose={() => setShowBumpModal(false)}
+          onBumped={(newScore) => {
+            setIntimacyMap(prev => new Map(prev).set(bumpTarget.user_id, newScore));
+          }}
         />
       )}
 
@@ -396,12 +561,22 @@ export default function MapScreen() {
       <MapActionPanel
         visible={showPanel}
         onClose={() => setShowPanel(false)}
-        showTrail={showTrail}
-        onToggleTrail={setShowTrail}
         saveHistory={saveHistory}
         onToggleSaveHistory={setSaveHistory}
         isSharing={isSharing}
         onToggleSharing={setIsSharing}
+      />
+
+      {/* ------ Notification Panel ------ */}
+      <NotificationPanel
+        visible={showNotifPanel}
+        onClose={() => setShowNotifPanel(false)}
+        onOpenMoment={(moments, index) => {
+          router.push({
+            pathname: '/camera',
+            params: { momentsStr: JSON.stringify(moments), initialIndex: String(index) },
+          } as any);
+        }}
       />
     </View>
   );
@@ -453,12 +628,31 @@ const styles = StyleSheet.create({
     top: 120,
     right: 20,
   },
+  fabTopRight3: {
+    top: 180,
+    right: 20,
+  },
   fabBottomRight: {
     bottom: 20,
     right: 20,
   },
   fabOff: {
     backgroundColor: 'rgba(30, 41, 59, 0.85)',
+  },
+  // Bell notification badge
+  bellBadge: {
+    position: 'absolute',
+    top: -4, right: -4,
+    minWidth: 18, height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#0B0F1A',
+  },
+  bellBadgeText: {
+    fontSize: 10, fontWeight: '900', color: '#fff',
   },
   // Directions bar
   directionsBar: {

@@ -55,11 +55,16 @@ export const getFriendsLocations = async (
   friendIds: string[]
 ): Promise<UserLocation[]> => {
   if (friendIds.length === 0) return [];
+  
+  // Chỉ lấy vị trí được cập nhật trong 5 phút qua để tránh "bóng ma" khi bạn bè tắt app đột ngột
+  const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from('user_locations')
     .select('user_id, latitude, longitude, is_sharing, updated_at')
     .in('user_id', friendIds)
-    .eq('is_sharing', true);
+    .eq('is_sharing', true)
+    .gte('updated_at', fiveMinsAgo);
   if (error) throw error;
 
   // Lấy thêm thông tin user (tên + avatar)

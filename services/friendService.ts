@@ -11,6 +11,8 @@ export type UserProfile = {
   email: string;
   avatar: string;
   username?: string;
+  gender?: string;
+  birthday?: string;
   online_at?: string;
 };
 
@@ -129,6 +131,28 @@ export const getPendingRequests = async (): Promise<FriendRequest[]> => {
   return requests.map(r => ({ ...r, other_user: userMap.get(r.requester_id) }));
 };
 
+// ---- Lời mời đã gửi (đang chờ người khác chấp nhận) ----
+export const getSentRequests = async (): Promise<FriendRequest[]> => {
+  const myId = await getMyId();
+  const { data, error } = await supabase
+    .from('friends')
+    .select('id, requester_id, receiver_id, status, created_at')
+    .eq('requester_id', myId)
+    .eq('status', 'pending');
+  if (error) throw error;
+
+  const requests = data ?? [];
+  if (requests.length === 0) return [];
+
+  const receiverIds = requests.map(r => r.receiver_id);
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, name, email, avatar, username')
+    .in('id', receiverIds);
+
+  const userMap = new Map((users ?? []).map(u => [u.id, u]));
+  return requests.map(r => ({ ...r, other_user: userMap.get(r.receiver_id) }));
+};
 // ---- Kiểm tra trạng thái bạn bè với 1 user ----
 export const getFriendshipStatus = async (
   otherUserId: string
@@ -156,4 +180,17 @@ export const getFriendIds = async (): Promise<string[]> => {
     .or(`requester_id.eq.${myId},receiver_id.eq.${myId}`)
     .eq('status', 'accepted');
   return (data ?? []).map(f => f.requester_id === myId ? f.receiver_id : f.requester_id);
+};
+
+// ---- Thu hồi lời mời kết bạn đã gửi ----
+export const cancelFriendRequest = async (toUserId: string): Promise<void> => {
+  const myId = await getMyId();
+  const { error } = await supabase
+    .from('friends')
+    .delete()
+    .eq('requester_id', myId)
+    .eq('receiver_id', toUserId)
+    .eq('status', 'pending');
+  if (error) throw error;
+  DeviceEventEmitter.emit('friends_badge_update');
 };

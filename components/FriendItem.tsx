@@ -5,9 +5,10 @@
 // =========================================================
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { Colors } from '../styles/colors';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { UserProfile } from '../services/friendService';
+import { Colors } from '../styles/colors';
+import IntimacyBadge from './IntimacyBadge';
 
 interface FriendItemProps {
   user: UserProfile;
@@ -15,6 +16,7 @@ interface FriendItemProps {
   onPress?: () => void;
   rightAction?: React.ReactNode;
   isUnread?: boolean;
+  intimacyScore?: number;  // điểm thân mật
 }
 
 // ---- Format "last seen" giống Messenger ----
@@ -30,7 +32,7 @@ const formatLastSeen = (onlineAt?: string): string => {
   return `Hoạt động ${days} ngày trước`;
 };
 
-export default function FriendItem({ user, subText, onPress, rightAction, isUnread }: FriendItemProps) {
+export default function FriendItem({ user, subText, onPress, rightAction, isUnread, intimacyScore }: FriendItemProps) {
   // Logic check online: online_at trong vòng 2 phút (do ping 1 phút/lần)
   const isOnline = user.online_at
     ? Date.now() - new Date(user.online_at).getTime() < 2 * 60 * 1000
@@ -59,11 +61,16 @@ export default function FriendItem({ user, subText, onPress, rightAction, isUnre
       </View>
 
       <View style={styles.infoContainer}>
-        <Text style={[styles.name, isUnread && styles.textUnread]} numberOfLines={1}>
-          {user.name}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, isUnread && styles.textUnread]} numberOfLines={1}>
+            {user.name}
+          </Text>
+          {intimacyScore !== undefined && (
+            <IntimacyBadge score={intimacyScore} size="sm" />
+          )}
+        </View>
         <Text style={[styles.subText, isUnread && styles.textUnread]} numberOfLines={1}>
-          {subText || (isOnline ? '🟢 Đang hoạt động' : lastSeenText)}
+          {subText || (isOnline ? 'Đang hoạt động' : lastSeenText)}
         </Text>
       </View>
 
@@ -120,6 +127,13 @@ const styles = StyleSheet.create({
   infoContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+    flexWrap: 'nowrap',
   },
   name: {
     fontSize: 16,

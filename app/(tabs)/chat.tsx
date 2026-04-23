@@ -86,12 +86,24 @@ export default function ChatListScreen() {
               ? new Date(item.last_message_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})
               : '';
 
-            // Format unread text
+            // Format message preview
+            let subText = item.last_message || 'Chưa có tin nhắn';
+            if (item.last_message && item.last_message.startsWith('[IMAGE:')) {
+              subText = 'Đã gửi ảnh';
+            } else if (item.last_message && item.last_message.startsWith('[REPLY_MOMENT:')) {
+              const match = item.last_message.match(/^\[REPLY_MOMENT:.+?\](.*)$/s);
+              if (match) {
+                const actualText = match[1].trim();
+                subText = actualText.length > 0 ? actualText : 'Đã trả lời khoảnh khắc';
+              }
+            }
+
+            // Format unread text override
             const unreadCount = item.unread_count || 0;
             const isUnread = unreadCount > 0;
-            const subText = isUnread && unreadCount > 1 
-              ? `+${unreadCount} tin nhắn mới` 
-              : (item.last_message || 'Chưa có tin nhắn');
+            if (isUnread && unreadCount > 1) {
+              subText = `+${unreadCount} tin nhắn mới`;
+            }
 
             return (
               <FriendItem 

@@ -3,21 +3,26 @@
 // KHÔNG thay đổi logic xác thực
 // =========================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, Alert, StyleSheet,
-  Animated, ScrollView, KeyboardAvoidingView, Platform, StatusBar,
+  ActivityIndicator, Alert,
+  Animated,
+  KeyboardAvoidingView, Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { verifyOTP, sendOTP } from '../services/otpService';
-import { registerUser, saveUserProfile, resetPasswordOnBackend } from '../services/authService';
-import { supabase } from '../services/supabaseConfig';
-import { Colors } from '../styles/colors';
-import { FontSize, Spacing, BorderRadius } from '../styles/globalStyles';
 import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
+import { registerUser, resetPasswordOnBackend, saveUserProfile } from '../services/authService';
+import { sendOTP, verifyOTP } from '../services/otpService';
+import { supabase } from '../services/supabaseConfig';
+import { Colors } from '../styles/colors';
+import { FontSize } from '../styles/globalStyles';
 
 const OTP_COUNTDOWN_SECONDS = 300;
 
@@ -226,7 +231,7 @@ export default function VerifyOTPScreen() {
             </View>
 
             <CustomButton
-              label="✅  Xác Minh OTP"
+              label="Xác Minh OTP"
               onPress={handleVerifyOTP}
               loading={loading}
               disabled={otp.length < 6}

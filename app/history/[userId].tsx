@@ -218,16 +218,16 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.gray50 },
+  safe: { flex: 1, backgroundColor: Colors.black },
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   backBtn: { marginRight: 8, padding: 4 },
   headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -246,15 +246,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   filterBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: Colors.gray100,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   filterBtnActive: {
     backgroundColor: Colors.primary,
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.gray200,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     marginRight: 8,
     marginTop: 4,
   },
@@ -292,6 +292,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 140,
     borderRadius: 16,
-    backgroundColor: Colors.gray100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
 });

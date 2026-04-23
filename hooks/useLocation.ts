@@ -9,13 +9,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-import { updateMyLocation, isSharingEnabled } from '../services/locationService';
+import { updateMyLocation, isSharingEnabled, toggleLocationSharing } from '../services/locationService';
 import { saveLocationHistory, saveLocationHistoryPrivacy } from '../services/locationHistoryService';
 
 const KEYS = {
   IS_SHARING: 'bump_is_sharing',
   SAVE_HISTORY: 'bump_save_history',
-  SHOW_TRAIL: 'bump_show_trail',
 };
 
 export const useLocation = () => {
@@ -23,7 +22,6 @@ export const useLocation = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(true);
   const [saveHistory, setSaveHistory] = useState(true);
-  const [showTrail, setShowTrail] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
@@ -38,10 +36,9 @@ export const useLocation = () => {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const [storedSharing, storedHistory, storedTrail] = await Promise.all([
+        const [storedSharing, storedHistory] = await Promise.all([
           SecureStore.getItemAsync(KEYS.IS_SHARING),
           SecureStore.getItemAsync(KEYS.SAVE_HISTORY),
-          SecureStore.getItemAsync(KEYS.SHOW_TRAIL),
         ]);
 
         if (storedSharing !== null) setIsSharing(storedSharing === 'true');
@@ -53,7 +50,6 @@ export const useLocation = () => {
           } catch {}
         }
         if (storedHistory !== null) setSaveHistory(storedHistory === 'true');
-        if (storedTrail !== null) setShowTrail(storedTrail === 'true');
       } catch (e) {
         console.log('Load settings error:', e);
       } finally {
@@ -67,6 +63,8 @@ export const useLocation = () => {
   const updateIsSharing = useCallback(async (v: boolean) => {
     setIsSharing(v);
     SecureStore.setItemAsync(KEYS.IS_SHARING, String(v)).catch(() => {});
+    // Đồng bộ cờ is_sharing lên Supabase DB để bạn bè biết
+    toggleLocationSharing(v).catch((e) => console.error('[useLocation] Toggle sharing error:', e));
   }, []);
 
   const updateSaveHistory = useCallback(async (v: boolean) => {
@@ -74,11 +72,6 @@ export const useLocation = () => {
     SecureStore.setItemAsync(KEYS.SAVE_HISTORY, String(v)).catch(() => {});
     // Đồng bộ cờ privacy lên DB ngay lập tức
     saveLocationHistoryPrivacy(v).catch(() => {});
-  }, []);
-
-  const updateShowTrail = useCallback(async (v: boolean) => {
-    setShowTrail(v);
-    SecureStore.setItemAsync(KEYS.SHOW_TRAIL, String(v)).catch(() => {});
   }, []);
 
   // ---- Bắt đầu theo dõi vị trí (chỉ chạy 1 lần) ----
@@ -158,7 +151,5 @@ export const useLocation = () => {
     setIsSharing: updateIsSharing,
     saveHistory,
     setSaveHistory: updateSaveHistory,
-    showTrail,
-    setShowTrail: updateShowTrail,
   };
 };

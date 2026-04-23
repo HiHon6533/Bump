@@ -4,7 +4,7 @@
 // =========================================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,13 +12,16 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../styles/colors';
 import * as Location from 'expo-location';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { postMoment, MomentData } from '../services/momentService';
 import { isSharingEnabled } from '../services/locationService';
 import { sendReaction, subscribeToReactions, fetchReactionsWithUsers, MomentReaction, ReactionWithUser } from '../services/momentReactionService';
 import { supabase } from '../services/supabaseConfig';
+import { getOrCreateConversation } from '../services/chatService';
 import EmojiReaction from '../components/EmojiReaction';
 import ReactionAvatars from '../components/ReactionAvatars';
 import ReactionListModal from '../components/ReactionListModal';
+import { getFriends, UserProfile } from '../services/friendService';
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -28,15 +31,41 @@ export default function CameraScreen() {
   
   const [mode, setMode] = useState<'view' | 'capture'>(parsedMoments.length > 0 ? 'view' : 'capture');
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex ? parseInt(initialIndex, 10) : 0);
-  
-  const currentMoment = parsedMoments[currentIndex];
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    getFriends().then(setFriends).catch(console.log);
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase.from('users').select('*').eq('id', data.user.id).single().then(res => {
+          if (res.data) setMyProfile(res.data);
+        });
+      }
+    });
+  }, []);
+
+  const filteredMoments = selectedUserId
+    ? parsedMoments.filter(m => m.user_id === selectedUserId)
+    : parsedMoments;
+
+  const currentMoment = filteredMoments[currentIndex];
 
   const handleNextMoment = () => {
-    if (currentIndex < parsedMoments.length - 1) {
+    if (currentIndex < filteredMoments.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       router.back();
     }
+  };
+
+  const handleSelectUser = (id: string | null) => {
+    setSelectedUserId(id);
+    setCurrentIndex(0);
+    setShowDropdown(false);
   };
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -50,6 +79,7 @@ export default function CameraScreen() {
   const [myId, setMyId] = useState<string | null>(null);
   const [reactions, setReactions] = useState<ReactionWithUser[]>([]);
   const [showReactionModal, setShowReactionModal] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Safe area insets — dùng thủ công để layout nhất quán dù mở camera từ đâu
   const insets = useSafeAreaInsets();
@@ -77,7 +107,13 @@ export default function CameraScreen() {
 
   const handleSendReaction = (emoji: string) => {
     if (!currentMoment) return;
-    sendReaction(currentMoment.id, emoji);
+    sendReaction(
+      currentMoment.id,
+      emoji,
+      currentMoment.user_id,
+      currentMoment.image_url,
+      currentMoment.caption,
+    );
   };
 
   // Khi tải lên, check xem user có bật "Lưu lịch sử" không
@@ -121,7 +157,18 @@ export default function CameraScreen() {
           base64: false,
           exif: false,
         });
-        if (photo?.uri) setPhotoUri(photo.uri);
+        if (photo?.uri) {
+          if (facing === 'front') {
+            const manipulatedImage = await ImageManipulator.manipulateAsync(
+              photo.uri,
+              [{ flip: ImageManipulator.FlipType.Horizontal }],
+              { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            setPhotoUri(manipulatedImage.uri);
+          } else {
+            setPhotoUri(photo.uri);
+          }
+        }
       } catch (err) {
         Alert.alert('Lỗi', 'Không thể chụp ảnh!');
       }
@@ -149,16 +196,85 @@ export default function CameraScreen() {
     }
   };
 
-  const handleReply = () => {
-    if (!currentMoment || !currentMoment.user?.id) return;
-    // Chuyển sang màn chat với user này, truyền theo currentMoment.image_url
-    router.push({
-      pathname: '/chat/[id]',
-      params: { 
-        id: currentMoment.user.id,
-        replyMomentUrl: currentMoment.image_url
+  const handleReply = async () => {
+    if (isNavigating) return;
+    if (!currentMoment || !currentMoment.user_id) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin khoảnh khắc');
+      return;
+    }
+
+    setIsNavigating(true);
+
+    try {
+      // Bước 1: Lấy session hiện tại
+      const { data: sessionData } = await supabase.auth.getSession();
+      const myId = sessionData?.session?.user?.id;
+      console.log('[handleReply] myId:', myId, 'otherUserId:', currentMoment.user_id);
+      
+      if (!myId) {
+        Alert.alert('Lỗi', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+        return;
       }
-    });
+      // Không cần check myId === user_id vì nút đã ẩn cho moment của mình
+
+      // Bước 2: Tìm hoặc tạo conversation
+      const u1 = myId < currentMoment.user_id ? myId : currentMoment.user_id;
+      const u2 = myId < currentMoment.user_id ? currentMoment.user_id : myId;
+      console.log('[handleReply] u1:', u1, 'u2:', u2);
+
+      let convId: string | null = null;
+
+      const { data: existing, error: findError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('user1_id', u1)
+        .eq('user2_id', u2)
+        .maybeSingle();
+
+      console.log('[handleReply] existing conv:', existing, 'findError:', findError);
+
+      if (existing) {
+        convId = existing.id;
+      } else {
+        const { data: created, error: createError } = await supabase
+          .from('conversations')
+          .insert({ user1_id: u1, user2_id: u2 })
+          .select('id')
+          .single();
+
+        console.log('[handleReply] created conv:', created, 'createError:', createError);
+
+        if (createError) throw new Error(`Tạo conversation thất bại: ${createError.message}`);
+        convId = created.id;
+      }
+
+      if (!convId) {
+        throw new Error('Không lấy được convId');
+      }
+
+      const friendName = currentMoment.user?.name || 'Bạn bè';
+      const friendAvatar = currentMoment.user?.avatar || '';
+      const imageUrl = currentMoment.image_url || '';
+
+      console.log('[handleReply] Navigating to chat, convId:', convId, 'imageUrl:', imageUrl);
+
+      // Đóng modal camera trước hoặc thay thế nó để màn hình chat hiện lên trên cùng
+      router.replace({
+        pathname: '/chat/[id]',
+        params: {
+          id: convId,
+          name: friendName,
+          avatar: friendAvatar,
+          otherUserId: currentMoment.user_id,
+          replyMomentUrl: imageUrl ? encodeURIComponent(imageUrl) : '',
+        }
+      });
+    } catch (e: any) {
+      console.log('[handleReply] ERROR:', e);
+      Alert.alert('Lỗi chi tiết', `${e?.message || JSON.stringify(e)}`);
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   return (
@@ -166,7 +282,7 @@ export default function CameraScreen() {
     // để layout KHÔNG bị ảnh hưởng bởi context tab navigator khi mở từ Map
     <View style={styles.container}>
 
-      {/* ===== HEADER (padding top = inset từ safe area thực tế) ===== */}
+      {/* ===== HEADER ===== */}
       <View style={[styles.header, { paddingTop: insets.top + 8, height: 56 + insets.top }]}>
         <TouchableOpacity 
           onPress={() => photoUri ? setPhotoUri(null) : router.back()} 
@@ -176,7 +292,16 @@ export default function CameraScreen() {
           <Feather name={photoUri ? "arrow-left" : "chevron-left"} size={28} color={Colors.white} />
         </TouchableOpacity>
 
-        <View style={styles.headerCenter} />
+        <View style={styles.headerCenter}>
+          {mode === 'view' && (
+            <TouchableOpacity style={styles.filterBtn} onPress={() => setShowDropdown(true)}>
+              <Text style={styles.filterText}>
+                {selectedUserId === null ? 'Mọi người' : (selectedUserId === myId ? 'Bạn' : friends.find(f => f.id === selectedUserId)?.name || 'Mọi người')}
+              </Text>
+              <Feather name={showDropdown ? "chevron-up" : "chevron-down"} size={16} color={Colors.white} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {mode === 'view' ? (
           <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
@@ -187,22 +312,33 @@ export default function CameraScreen() {
         )}
       </View>
 
-      {/* ===== PHOTO BOX (giống nhau cả 2 mode) ===== */}
+      {/* ===== PHOTO BOX ===== */}
       <View style={styles.photoContainer}>
         <View style={styles.photoBox}>
-          {mode === 'view' && currentMoment ? (
-            <TouchableOpacity style={styles.fill} activeOpacity={1} onPress={handleNextMoment}>
-              <Image source={{ uri: currentMoment.image_url }} style={styles.fill} contentFit="cover" />
-              {currentMoment.caption && (
-                <View style={styles.captionBadgeDisplay}>
-                  <Text style={styles.captionTextDisplay}>{currentMoment.caption}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+          {mode === 'view' ? (
+            currentMoment ? (
+              <TouchableOpacity style={styles.fill} activeOpacity={1} onPress={handleNextMoment}>
+                <Image source={{ uri: currentMoment.image_url }} style={styles.fill} contentFit="cover" />
+                {currentMoment.caption && (
+                  <View style={styles.captionBadgeDisplay}>
+                    <Text style={styles.captionTextDisplay}>{currentMoment.caption}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.fill, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1E1E1E' }]}>
+                <Feather name="image" size={48} color="rgba(255,255,255,0.2)" style={{ marginBottom: 16 }} />
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Chưa có khoảnh khắc</Text>
+              </View>
+            )
           ) : photoUri ? (
             <View style={styles.fill}>
               <Image source={{ uri: photoUri }} style={styles.fill} contentFit="cover" />
-              <View style={styles.captionInputContainer}>
+              <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.captionInputContainer}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+              >
                 <TextInput
                   style={styles.captionInput}
                   placeholder="Thêm chú thích..."
@@ -212,10 +348,16 @@ export default function CameraScreen() {
                   maxLength={50}
                   autoCorrect={false}
                 />
-              </View>
+              </KeyboardAvoidingView>
             </View>
           ) : (
-            <CameraView ref={cameraRef} style={styles.fill} facing="back" animateShutter={true} />
+            <CameraView 
+              key={facing}
+              ref={cameraRef} 
+              style={styles.fill} 
+              facing={facing} 
+              animateShutter={true} 
+            />
           )}
         </View>
       </View>
@@ -256,9 +398,14 @@ export default function CameraScreen() {
               <View style={styles.captureInner} />
             </TouchableOpacity>
             <View style={styles.footerSide}>
-              {myId !== currentMoment?.user_id && (
-                <TouchableOpacity style={styles.replyBtn} onPress={handleReply}>
-                  <Feather name="message-circle" size={24} color={Colors.white} />
+              {/* Chỉ show nút khi myId đã load VÀ đây không phải moment của mình */}
+              {myId !== null && myId !== currentMoment?.user_id && (
+                <TouchableOpacity 
+                  style={styles.replyBtn} 
+                  onPress={handleReply}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="message-circle" size={26} color={Colors.white} />
                 </TouchableOpacity>
               )}
             </View>
@@ -285,7 +432,14 @@ export default function CameraScreen() {
             <TouchableOpacity style={styles.captureOuter} onPress={takePicture}>
               <View style={styles.captureInner} />
             </TouchableOpacity>
-            <View style={styles.footerSide} />
+            <View style={styles.footerSide}>
+              <TouchableOpacity 
+                onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')} 
+                style={styles.replyBtn}
+              >
+                <Feather name="refresh-ccw" size={24} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -295,6 +449,52 @@ export default function CameraScreen() {
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.white} />
           <Text style={styles.loadingText}>Đang nén ảnh...</Text>
+        </View>
+      )}
+
+      {/* ===== DROPDOWN MODAL ===== */}
+      {showDropdown && (
+        <View style={styles.dropdownOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowDropdown(false)} />
+          <View style={[styles.dropdownContent, { top: insets.top + 60 }]}>
+            
+            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSelectUser(null)}>
+              <View style={styles.dropdownItemIcon}>
+                <Feather name="users" size={16} color={Colors.white} />
+              </View>
+              <Text style={styles.dropdownItemText}>Mọi người</Text>
+              {selectedUserId === null && <Feather name="check" size={20} color={Colors.white} />}
+            </TouchableOpacity>
+
+            {myProfile && (
+              <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSelectUser(myProfile.id)}>
+                {myProfile.avatar ? (
+                  <Image source={{ uri: myProfile.avatar }} style={styles.dropdownItemAvatar} />
+                ) : (
+                  <View style={styles.dropdownItemIcon}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Bạn</Text>
+                  </View>
+                )}
+                <Text style={styles.dropdownItemText}>Bạn</Text>
+                {selectedUserId === myProfile.id && <Feather name="check" size={20} color={Colors.white} />}
+              </TouchableOpacity>
+            )}
+
+            {friends.map(friend => (
+              <TouchableOpacity key={friend.id} style={styles.dropdownItem} onPress={() => handleSelectUser(friend.id)}>
+                {friend.avatar ? (
+                  <Image source={{ uri: friend.avatar }} style={styles.dropdownItemAvatar} />
+                ) : (
+                  <View style={styles.dropdownItemIcon}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{friend.name.charAt(0)}</Text>
+                  </View>
+                )}
+                <Text style={styles.dropdownItemText}>{friend.name}</Text>
+                {selectedUserId === friend.id && <Feather name="check" size={20} color={Colors.white} />}
+              </TouchableOpacity>
+            ))}
+
+          </View>
         </View>
       )}
 
@@ -646,5 +846,66 @@ const styles = StyleSheet.create({
   momentTime: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
+  },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  filterText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginHorizontal: 4,
+  },
+  dropdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    zIndex: 100,
+  },
+  dropdownContent: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    backgroundColor: '#2A3050',
+    borderRadius: 16,
+    paddingVertical: 8,
+    maxHeight: '60%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownItemAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  dropdownItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownItemText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
   },
 });

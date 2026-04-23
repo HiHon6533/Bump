@@ -24,6 +24,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { isIntroShown } from '../utils/storage';
 import { getUserSession } from '../utils/storage';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseConfig';
 import { Colors } from '../styles/colors';
 
 const { width } = Dimensions.get('window');
@@ -106,6 +107,28 @@ export default function HomeScreen() {
   // =========================================================
   const checkAppState = async () => {
     try {
+      // Kiểm tra bảo trì hệ thống trước
+      try {
+        const { data: config } = await supabase
+          .from('system_config')
+          .select('value')
+          .eq('key', 'maintenance')
+          .single();
+
+        if (config?.value?.enabled === true) {
+          router.replace({
+            pathname: '/maintenance',
+            params: {
+              message: config.value.message || '',
+              estimatedTime: config.value.estimated_time || '',
+            },
+          } as any);
+          return;
+        }
+      } catch (_) {
+        // Bỏ qua nếu bảng chưa tồn tại
+      }
+
       const introShown = await isIntroShown();
       if (!introShown) {
         router.replace('/intro' as any);
@@ -118,7 +141,24 @@ export default function HomeScreen() {
         return;
       }
 
-      // Đã đăng nhập → hiển thị Tabs chính (chỉ định rõ tab đầu tiên là map)
+      // Kiểm tra tài khoản có bị ban không (nếu lỗi thì bỏ qua)
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('is_banned')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile?.is_banned === true) {
+          await supabase.auth.signOut();
+          router.replace('/banned' as any);
+          return;
+        }
+      } catch (_) {
+        // Bỏ qua lỗi nếu cột is_banned chưa tồn tại
+      }
+
+      // Đã đăng nhập → hiển thị Tabs chính
       router.replace('/(tabs)/map' as any);
     } catch (error) {
       router.replace('/login' as any);

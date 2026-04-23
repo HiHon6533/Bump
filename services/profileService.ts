@@ -17,7 +17,7 @@ export const getProfile = async (userId?: string): Promise<UserProfile | null> =
   const id = userId ?? (await getMyId());
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, email, avatar, username, online_at')
+    .select('id, name, email, avatar, username, gender, birthday, online_at')
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
@@ -26,7 +26,7 @@ export const getProfile = async (userId?: string): Promise<UserProfile | null> =
 
 // ---- Cập nhật thông tin cá nhân ----
 export const updateProfile = async (
-  updates: Partial<{ name: string; username: string; avatar: string }>
+  updates: Partial<{ name: string; username: string; avatar: string; gender: string; birthday: string }>
 ): Promise<void> => {
   const myId = await getMyId();
   const { error } = await supabase

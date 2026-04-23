@@ -4,6 +4,8 @@
 // =========================================================
 
 import { supabase } from './supabaseConfig';
+import { addReactionScore } from './intimacyService';
+import { createNotification } from './notificationService';
 
 export interface MomentReaction {
   id: string;
@@ -59,8 +61,14 @@ const getMyId = async (): Promise<string> => {
   return session.user.id;
 };
 
-// ---- Gửi reaction ----
-export const sendReaction = async (momentId: string, emoji: string): Promise<void> => {
+// ---- Gửi reaction (+5 điểm thân mật với chủ moment) ----
+export const sendReaction = async (
+  momentId: string,
+  emoji: string,
+  momentOwnerId?: string,
+  momentImageUrl?: string,
+  momentCaption?: string,
+): Promise<void> => {
   const myId = await getMyId();
 
   const { error } = await supabase
@@ -73,6 +81,21 @@ export const sendReaction = async (momentId: string, emoji: string): Promise<voi
 
   if (error) {
     console.log('Send reaction error:', error.message);
+    return;
+  }
+
+  // Cộng điểm thân mật +5đ cho chủ moment
+  if (momentOwnerId && momentOwnerId !== myId) {
+    addReactionScore(momentOwnerId).catch(() => {});
+
+    // Gửi thông báo cho chủ moment
+    createNotification(momentOwnerId, 'moment_reaction', {
+      emoji,
+      moment_id: momentId,
+      moment_owner_id: momentOwnerId,
+      image_url: momentImageUrl,
+      caption: momentCaption,
+    }).catch(() => {});
   }
 };
 

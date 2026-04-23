@@ -16,6 +16,7 @@ export default function TabLayout() {
   const { currentUser } = useCurrentUser();
   const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [pendingPopsCount, setPendingPopsCount] = useState(0);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -78,6 +79,9 @@ export default function TabLayout() {
 
     fetchCounts();
 
+    // Polling fallback: kiểm tra mỗi 15 giây (phòng trường hợp Realtime bị delay)
+    const pollingInterval = setInterval(fetchCounts, 15000);
+
     // Subscribe to realtime changes for friends table
     const friendsSub = supabase
       .channel('public:friends:badge')
@@ -95,9 +99,6 @@ export default function TabLayout() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload: any) => { 
-          // Chỉ cần update nếu có thay đổi liên quan đến tin nhắn gửi tới mình
-          // (Không thể filter trực tiếp receiver_id trên channel vì messages table ko có receiver_id,
-          // nên phải fetch lại khi có message mới khác sender_id)
           if (payload.new && payload.new.sender_id !== currentUser.id) {
              fetchCounts();
           } else if (payload.old) {
@@ -112,13 +113,35 @@ export default function TabLayout() {
       fetchCounts();
     });
 
+    // Lắng nghe badge pops từ tab bản đồ (khi map screen xóa badge sau khi show rain)
+    const popBadgeSub = DeviceEventEmitter.addListener('map_pops_badge_update', (count: number) => {
+      setPendingPopsCount(count);
+    });
+
     return () => {
       mounted = false;
+      clearInterval(pollingInterval);
       supabase.removeChannel(friendsSub);
       supabase.removeChannel(messagesSub);
       localFriendSub.remove();
+      popBadgeSub.remove();
     };
   }, [currentUser?.id]);
+
+  // ---- Pops badge — chỉ lắng nghe sự kiện từ map.tsx ----
+  // map.tsx sẽ quyết định tăng/giảm badge tùy theo isFocused
+  useEffect(() => {
+    const incSub = DeviceEventEmitter.addListener('map_pops_badge_increment', () => {
+      setPendingPopsCount(prev => prev + 1);
+    });
+    const clearSub = DeviceEventEmitter.addListener('map_pops_badge_update', (count: number) => {
+      setPendingPopsCount(count);
+    });
+    return () => {
+      incSub.remove();
+      clearSub.remove();
+    };
+  }, []);
 
   // Component Badge dùng chung
   const TabBadge = ({ count }: { count: number }) => {
@@ -162,7 +185,10 @@ export default function TabLayout() {
         options={{
           title: 'Bản đồ',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="map" size={size} color={color} />
+            <View>
+              <Feather name="map" size={size} color={color} />
+              <TabBadge count={pendingPopsCount} />
+            </View>
           ),
         }}
       />

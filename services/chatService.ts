@@ -4,6 +4,7 @@
 // =========================================================
 
 import { supabase } from './supabaseConfig';
+import { addChatScore } from './intimacyService';
 
 export type Message = {
   id: string;
@@ -117,10 +118,11 @@ export const getMessages = async (conversationId: string): Promise<Message[]> =>
   return data ?? [];
 };
 
-// ---- Gửi tin nhắn ----
+// ---- Gửi tin nhắn (+ cộng điểm thân mật +1đ) ----
 export const sendMessage = async (
   conversationId: string,
-  content: string
+  content: string,
+  otherUserId?: string,  // cần để cộng điểm thân mật
 ): Promise<Message> => {
   const myId = await getMyId();
   const { data, error } = await supabase
@@ -135,6 +137,11 @@ export const sendMessage = async (
     .from('conversations')
     .update({ last_message: content, last_message_at: new Date().toISOString() })
     .eq('id', conversationId);
+
+  // Cộng điểm thân mật +1đ (không chặn, fail silently)
+  if (otherUserId) {
+    addChatScore(otherUserId).catch(() => {});
+  }
 
   return data;
 };
@@ -175,4 +182,87 @@ export const markMessagesAsRead = async (conversationId: string): Promise<void> 
   if (error && error.code !== 'PGRST200') {
     console.error("markMessagesAsRead error:", error);
   }
+};
+
+// ---- Upload ảnh chat ----
+export const uploadChatImage = async (uri: string): Promise<string> => {
+  const myId = await getMyId();
+  const ext = uri.split('.').pop() ?? 'jpg';
+  const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+  const filePath = `${myId}/${fileName}`;
+
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    name: fileName,
+    type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+  } as any);
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, formData, { upsert: true });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  return data.publicUrl;
+};
+
+// ---- Cập nhật biệt danh ----
+export const updateNickname = async (conversationId: string, nickname: string): Promise<void> => {
+  const myId = await getMyId();
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('user1_id, user2_id')
+    .eq('id', conversationId)
+    .single();
+  
+  if (!conv) return;
+
+  const field = conv.user1_id === myId ? 'user1_nickname' : 'user2_nickname';
+  const { error } = await supabase
+    .from('conversations')
+    .update({ [field]: nickname })
+    .eq('id', conversationId);
+  
+  if (error) throw error;
+};
+
+// ---- Bật/Tắt thông báo ----
+export const toggleMute = async (conversationId: string, isMuted: boolean): Promise<void> => {
+  const myId = await getMyId();
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('user1_id, user2_id')
+    .eq('id', conversationId)
+    .single();
+  
+  if (!conv) return;
+
+  const field = conv.user1_id === myId ? 'user1_mute' : 'user2_mute';
+  const { error } = await supabase
+    .from('conversations')
+    .update({ [field]: isMuted })
+    .eq('id', conversationId);
+  
+  if (error) throw error;
+};
+
+// ---- Lấy các ảnh đã gửi trong cuộc trò chuyện ----
+export const getSharedPhotos = async (conversationId: string): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('content')
+    .eq('conversation_id', conversationId)
+    .like('content', '[IMAGE:%')
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+
+  const regex = /^\[IMAGE:(.+?)\]/;
+  const photos: string[] = [];
+  data.forEach(msg => {
+    const match = msg.content.match(regex);
+    if (match) photos.push(match[1]);
+  });
+  return photos;
 };

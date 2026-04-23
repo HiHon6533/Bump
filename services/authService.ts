@@ -109,11 +109,16 @@ export const loginUser = async (
 // Đăng xuất
 // =========================================================
 export const logoutUser = async (): Promise<void> => {
-  // Lùi thời gian về 2 phút trước khi đăng xuất để bạn bè thấy chữ "Hoạt động 2 phút trước" ngay lập tức!
+  // Lùi thời gian về 1 tiếng trước để user lập tức biến mất khỏi Radar (radar check 30 phút)
+  // và tắt luôn is_sharing trong user_locations
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user?.id) {
-    const twoMinsAgo = new Date(Date.now() - 120000).toISOString();
-    await supabase.from('users').update({ online_at: twoMinsAgo }).eq('id', session.user.id);
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+    
+    await Promise.all([
+      supabase.from('users').update({ online_at: oneHourAgo }).eq('id', session.user.id),
+      supabase.from('user_locations').update({ is_sharing: false }).eq('user_id', session.user.id)
+    ]);
   }
 
   await supabase.auth.signOut();

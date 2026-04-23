@@ -71,7 +71,27 @@ export default function LoginScreen() {
       }
 
       const user = await loginUser(email, password);
-      if (user) router.replace('/');
+      if (user) {
+        // Kiểm tra tài khoản có bị ban không (nếu lỗi thì bỏ qua)
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('is_banned')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.is_banned === true) {
+            await supabase.auth.signOut();
+            setLoading(false);
+            router.replace('/banned' as any);
+            return;
+          }
+        } catch (_) {
+          // Bỏ qua nếu cột is_banned chưa tồn tại
+        }
+
+        router.replace('/');
+      }
     } catch (error: any) {
       const msg: string = error?.message ?? '';
       let message = 'Đăng nhập thất bại. Vui lòng thử lại.';

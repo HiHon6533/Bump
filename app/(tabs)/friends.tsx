@@ -12,14 +12,15 @@ import { Colors } from '../../styles/colors';
 import { FontSize } from '../../styles/globalStyles';
 import {
   UserProfile, FriendRequest,
-  searchUsers, getFriends, getPendingRequests,
+  searchUsers, getFriends, getPendingRequests, getSentRequests,
   sendFriendRequest, respondToRequest, getFriendshipStatus,
-  unfriend
+  unfriend, cancelFriendRequest
 } from '../../services/friendService';
 import { getOrCreateConversation } from '../../services/chatService';
 import FriendItem from '../../components/FriendItem';
 import EmptyState from '../../components/EmptyState';
 import CustomButton from '../../components/CustomButton';
+import { supabase } from '../../services/supabaseConfig';
 
 export default function FriendsScreen() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function FriendsScreen() {
   // Data
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,8 +39,27 @@ export default function FriendsScreen() {
   // States check
   const [friendStatuses, setFriendStatuses] = useState<Record<string, string>>({});
 
+  // Fetch data khi đổi tab
   useEffect(() => {
     fetchData();
+  }, [activeTab]);
+
+  // Realtime: tự động refresh khi có lời mời kết bạn mới
+  useEffect(() => {
+    const channel = supabase
+      .channel('friends_screen_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'friends' },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [activeTab]);
 
   const fetchData = async () => {
@@ -52,8 +73,12 @@ export default function FriendsScreen() {
         setFriends(friendsData);
         setRequests(reqsData);
       } else if (activeTab === 'requests') {
-        const data = await getPendingRequests();
-        setRequests(data);
+        const [incoming, outgoing] = await Promise.all([
+          getPendingRequests(),
+          getSentRequests()
+        ]);
+        setRequests(incoming);
+        setSentRequests(outgoing);
       }
     } catch (e) {
       console.log('Error fetch friend data', e);
@@ -111,6 +136,33 @@ export default function FriendsScreen() {
     } catch (e: any) {
       Alert.alert('Lỗi', e.message);
     }
+  };
+
+  const handleCancelRequest = (userId: string) => {
+    Alert.alert(
+      'Thu hồi lời mời',
+      'Bạn có chắc muốn thu hồi lời mời kết bạn này?',
+      [
+        { text: 'Không', style: 'cancel' },
+        { 
+          text: 'Thu hồi', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelFriendRequest(userId);
+              setFriendStatuses(prev => {
+                const updated = { ...prev };
+                delete updated[userId];
+                return updated;
+              });
+              Alert.alert('Đã thu hồi', 'Lời mời kết bạn đã được thu hồi.');
+            } catch (e: any) {
+              Alert.alert('Lỗi', 'Không thể thu hồi lúc này.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleRespond = async (requestId: string, accept: boolean) => {
@@ -181,6 +233,13 @@ export default function FriendsScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Bạn bè</Text>
+        <TouchableOpacity 
+          style={styles.radarBtn}
+          onPress={() => router.push('/radar')}
+        >
+          <Feather name="target" size={18} color={Colors.white} />
+          <Text style={styles.radarBtnText}>Tìm quanh đây</Text>
+        </TouchableOpacity>
       </View>
       
       {renderTab()}
@@ -233,23 +292,33 @@ export default function FriendsScreen() {
       {activeTab === 'requests' && (
         loading ? <ActivityIndicator style={styles.loader} color={Colors.primary} /> :
         <FlatList
-          data={requests}
+          data={[...requests, ...sentRequests]}
           keyExtractor={item => item.id}
           renderItem={({ item }) => {
             if (!item.other_user) return null;
+            const isSentByMe = sentRequests.some(r => r.id === item.id);
             return (
               <FriendItem 
                 user={item.other_user} 
-                subText="Đã gửi lời mời cho bạn"
+                subText={isSentByMe ? 'Bạn đã gửi lời mời' : 'Đã gửi lời mời cho bạn'}
                 rightAction={
-                  <View style={styles.requestActions}>
-                    <TouchableOpacity style={[styles.reqBtn, styles.reqAcceptBtn]} onPress={() => handleRespond(item.id, true)}>
-                      <Text style={styles.reqAcceptText}>Chấp nhận</Text>
+                  isSentByMe ? (
+                    <TouchableOpacity 
+                      style={[styles.reqBtn, { backgroundColor: 'rgba(239,68,68,0.15)' }]} 
+                      onPress={() => handleCancelRequest(item.other_user!.id)}
+                    >
+                      <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13 }}>Thu hồi</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.reqBtn, styles.reqDeclineBtn]} onPress={() => handleRespond(item.id, false)}>
-                      <Feather name="x" size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                  </View>
+                  ) : (
+                    <View style={styles.requestActions}>
+                      <TouchableOpacity style={[styles.reqBtn, styles.reqAcceptBtn]} onPress={() => handleRespond(item.id, true)}>
+                        <Text style={styles.reqAcceptText}>Chấp nhận</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.reqBtn, styles.reqDeclineBtn]} onPress={() => handleRespond(item.id, false)}>
+                        <Feather name="x" size={18} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  )
                 }
               />
             );
@@ -294,7 +363,12 @@ export default function FriendsScreen() {
                     status === 'accepted' ? (
                       <View style={styles.statusBadge}><Text style={styles.statusText}>Bạn bè</Text></View>
                     ) : status === 'pending' ? (
-                      <View style={[styles.statusBadge, styles.statusPending]}><Text style={styles.statusTextPending}>Đã gửi</Text></View>
+                      <TouchableOpacity 
+                        style={[styles.statusBadge, styles.statusPending]} 
+                        onPress={() => handleCancelRequest(item.id)}
+                      >
+                        <Text style={styles.statusTextPending}>Thu hồi</Text>
+                      </TouchableOpacity>
                     ) : (
                       <TouchableOpacity style={styles.addBtn} onPress={() => handleSendRequest(item.id)}>
                         <Text style={styles.addBtnText}>Kết bạn</Text>
@@ -318,8 +392,28 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.black },
-  header: { padding: 20, paddingBottom: 10 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    padding: 20, 
+    paddingBottom: 10 
+  },
   headerTitle: { fontSize: 28, fontWeight: '800', color: Colors.textPrimary },
+  radarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  radarBtnText: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
   
   // Tabs
   tabContainer: {

@@ -15,9 +15,6 @@ import { Colors } from '../styles/colors';
 interface MapActionPanelProps {
   visible: boolean;
   onClose: () => void;
-  // Toggles
-  showTrail: boolean;
-  onToggleTrail: (v: boolean) => void;
   saveHistory: boolean;
   onToggleSaveHistory: (v: boolean) => void;
   isSharing: boolean;
@@ -46,7 +43,7 @@ const ToggleItem = ({ icon, iconColor, iconBg, label, desc, value, onChange }: T
     <Switch
       value={value}
       onValueChange={onChange}
-      trackColor={{ false: Colors.gray200, true: Colors.primaryLight }}
+      trackColor={{ false: 'rgba(255,255,255,0.2)', true: Colors.primaryLight }}
       thumbColor={value ? Colors.primary : Colors.gray400}
     />
   </View>
@@ -87,19 +84,13 @@ export default function MapActionPanel(props: MapActionPanelProps) {
           </TouchableOpacity>
         </View>
 
-        {/* Toggle Items */}
         <ToggleItem
-          icon="radio" iconColor="#1565C0" iconBg="#E3F2FD"
+          icon="radio" iconColor="#42A5F5" iconBg="rgba(21, 101, 192, 0.2)"
           label="Chia sẻ vị trí" desc="Bạn bè có thể thấy bạn"
           value={props.isSharing} onChange={props.onToggleSharing}
         />
         <ToggleItem
-          icon="activity" iconColor="#2E7D32" iconBg="#E8F5E9"
-          label="Đường đi realtime" desc="Hiển thị trail khi di chuyển"
-          value={props.showTrail} onChange={props.onToggleTrail}
-        />
-        <ToggleItem
-          icon="save" iconColor="#6A1B9A" iconBg="#F3E5F5"
+          icon="save" iconColor="#A78BFA" iconBg="rgba(124, 58, 237, 0.2)"
           label="Lưu lịch sử" desc="Tự động lưu vị trí di chuyển"
           value={props.saveHistory} onChange={props.onToggleSaveHistory}
         />
@@ -123,7 +114,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   panel: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -131,7 +122,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 20,
   },
@@ -147,7 +138,7 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.gray100,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   toggleItem: {
@@ -155,7 +146,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   toggleIcon: {
     width: 40, height: 40, borderRadius: 12,
